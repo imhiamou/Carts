@@ -1,6 +1,8 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+/* ================= CANVAS ================= */
+
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -8,74 +10,113 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
+/* ================= WORLD ================= */
+
 const WORLD_WIDTH = 1000;
 const WORLD_HEIGHT = 700;
 
 const ROAD_WIDTH = 128;
 const INTERSECTION_SIZE = 128;
 
-const sprite = new Image();
-sprite.src = "sprites.png";
+/* ================= SPRITE ================= */
 
-let intersection = { turnUp:false };
+const sprite = new Image();
+sprite.src = "sprites.png"; // MUST match exact filename
+
+let spriteLoaded = false;
+let spriteFailed = false;
+
+sprite.onload = () => {
+  console.log("Sprite loaded successfully");
+  spriteLoaded = true;
+};
+
+sprite.onerror = () => {
+  console.error("Sprite failed to load");
+  spriteFailed = true;
+};
+
+/* ================= GAME STATE ================= */
+
+let intersection = { turnUp: false };
 
 let cart = {
-  x:150,
-  y:WORLD_HEIGHT/2,
-  speed:3,
-  vx:3,
-  vy:0,
-  rotation:0
+  x: 150,
+  y: WORLD_HEIGHT / 2,
+  speed: 3,
+  vx: 3,
+  vy: 0,
+  rotation: 0
 };
 
 let gameState = "playing";
 
-function getScale(){
-  return Math.min(canvas.width/WORLD_WIDTH, canvas.height/WORLD_HEIGHT);
+/* ================= HELPERS ================= */
+
+function getScale() {
+  return Math.min(
+    canvas.width / WORLD_WIDTH,
+    canvas.height / WORLD_HEIGHT
+  );
 }
 
-function getLayout(){
+function getLayout() {
   return {
-    horizontalY: WORLD_HEIGHT/2 - ROAD_WIDTH/2,
-    verticalX: WORLD_WIDTH/2 - ROAD_WIDTH/2
+    horizontalY: WORLD_HEIGHT / 2 - ROAD_WIDTH / 2,
+    verticalX: WORLD_WIDTH / 2 - ROAD_WIDTH / 2
   };
 }
 
-function drawGrass(){
-  for(let x=0;x<WORLD_WIDTH;x+=128){
-    for(let y=0;y<WORLD_HEIGHT;y+=128){
-      ctx.drawImage(sprite,0,0,128,128,x,y,128,128);
+/* ================= DRAWING ================= */
+
+function drawGrass() {
+  for (let x = 0; x < WORLD_WIDTH; x += 128) {
+    for (let y = 0; y < WORLD_HEIGHT; y += 128) {
+      ctx.drawImage(sprite, 0, 0, 128, 128, x, y, 128, 128);
     }
   }
 }
 
-function drawRoad(layout){
-  for(let x=0;x<WORLD_WIDTH;x+=128){
-    ctx.drawImage(sprite,128,0,128,128,x,layout.horizontalY,128,128);
+function drawRoad(layout) {
+  for (let x = 0; x < WORLD_WIDTH; x += 128) {
+    ctx.drawImage(sprite, 128, 0, 128, 128, x, layout.horizontalY, 128, 128);
   }
-  for(let y=0;y<layout.horizontalY+ROAD_WIDTH;y+=128){
-    ctx.drawImage(sprite,128,0,128,128,layout.verticalX,y,128,128);
+
+  for (let y = 0; y < layout.horizontalY + ROAD_WIDTH; y += 128) {
+    ctx.drawImage(sprite, 128, 0, 128, 128, layout.verticalX, y, 128, 128);
   }
 }
 
-function drawBarn(layout){
-  ctx.drawImage(sprite,384,0,128,128,
+function drawBarn(layout) {
+  ctx.drawImage(
+    sprite,
+    384, 0, 128, 128,
     layout.verticalX,
     50,
     256,
-    256);
+    256
+  );
 }
 
-function drawCart(){
+function drawCart() {
   ctx.save();
   ctx.translate(cart.x, cart.y);
   ctx.rotate(cart.rotation);
-  ctx.drawImage(sprite,256,0,128,128,-64,-64,128,128);
+
+  ctx.drawImage(
+    sprite,
+    256, 0, 128, 128,
+    -64, -64,
+    128, 128
+  );
+
   ctx.restore();
 }
 
-function updateCart(layout){
-  if(gameState!=="playing") return;
+/* ================= MOVEMENT ================= */
+
+function updateCart(layout) {
+  if (gameState !== "playing") return;
 
   const ix = layout.verticalX;
   const iy = layout.horizontalY;
@@ -86,57 +127,80 @@ function updateCart(layout){
     cart.y > iy &&
     cart.y < iy + INTERSECTION_SIZE;
 
-  if(inside){
-    if(intersection.turnUp){
-      cart.vx=0;
-      cart.vy=-cart.speed;
-    }else{
-      cart.vx=cart.speed;
-      cart.vy=0;
+  if (inside) {
+    if (intersection.turnUp) {
+      cart.vx = 0;
+      cart.vy = -cart.speed;
+    } else {
+      cart.vx = cart.speed;
+      cart.vy = 0;
     }
   }
 
-  cart.x+=cart.vx;
-  cart.y+=cart.vy;
+  cart.x += cart.vx;
+  cart.y += cart.vy;
 
-  let targetRotation = cart.vx!==0 ? 0 : -Math.PI/2;
-  cart.rotation += (targetRotation-cart.rotation)*0.15;
+  let targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
+  cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
-  if(cart.x>WORLD_WIDTH-100) endGame("lose");
-  if(cart.y<100) endGame("win");
+  if (cart.x > WORLD_WIDTH - 100) endGame("lose");
+  if (cart.y < 100) endGame("win");
 }
 
-function endGame(result){
-  gameState=result;
-  document.getElementById("ui").style.display="block";
+/* ================= GAME STATE ================= */
+
+function endGame(result) {
+  gameState = result;
+  document.getElementById("ui").style.display = "block";
   document.getElementById("result").innerText =
-    result==="win"?"🏆 YOU WIN":"💀 YOU LOSE";
+    result === "win" ? "🏆 YOU WIN" : "💀 YOU LOSE";
 }
 
-function restartGame(){
-  cart.x=150;
-  cart.y=WORLD_HEIGHT/2;
-  cart.vx=cart.speed;
-  cart.vy=0;
-  cart.rotation=0;
-  intersection.turnUp=false;
-  gameState="playing";
-  document.getElementById("ui").style.display="none";
+function restartGame() {
+  cart.x = 150;
+  cart.y = WORLD_HEIGHT / 2;
+  cart.vx = cart.speed;
+  cart.vy = 0;
+  cart.rotation = 0;
+  intersection.turnUp = false;
+  gameState = "playing";
+  document.getElementById("ui").style.display = "none";
 }
 
-canvas.addEventListener("click",()=>{
-  intersection.turnUp=!intersection.turnUp;
+/* ================= INPUT ================= */
+
+canvas.addEventListener("click", () => {
+  intersection.turnUp = !intersection.turnUp;
 });
 
-function gameLoop(){
-  if(!sprite.complete){ requestAnimationFrame(gameLoop); return; }
+/* ================= LOOP ================= */
 
-  const layout=getLayout();
-  const scale=getScale();
+function gameLoop() {
 
-  ctx.setTransform(scale,0,0,scale,
-    (canvas.width-WORLD_WIDTH*scale)/2,
-    (canvas.height-WORLD_HEIGHT*scale)/2);
+  // If sprite failed, show error visually
+  if (spriteFailed) {
+    ctx.fillStyle = "red";
+    ctx.font = "30px Arial";
+    ctx.fillText("Sprite failed to load.", 50, 100);
+    return;
+  }
+
+  // Wait until sprite actually loads
+  if (!spriteLoaded) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  const layout = getLayout();
+  const scale = getScale();
+
+  ctx.setTransform(
+    scale, 0, 0, scale,
+    (canvas.width - WORLD_WIDTH * scale) / 2,
+    (canvas.height - WORLD_HEIGHT * scale) / 2
+  );
+
+  ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
   drawGrass();
   drawRoad(layout);
