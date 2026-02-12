@@ -15,23 +15,37 @@ resize();
 const WORLD_WIDTH = 1000;
 const WORLD_HEIGHT = 700;
 
+const TILE = 128;
 const ROAD_WIDTH = 140;
 const INTERSECTION_SIZE = 140;
 
-/* ================= SPRITE ================= */
+/* ================= LOAD IMAGES ================= */
 
-const sprite = new Image();
-sprite.src = "sprites.png"; // must match filename exactly
+const grassImg = new Image();
+grassImg.src = "grass.png";
 
-let spriteLoaded = false;
+const dirtImg = new Image();
+dirtImg.src = "dirt.png";
 
-sprite.onload = () => {
-  spriteLoaded = true;
-};
+const cartImg = new Image();
+cartImg.src = "cart.png";
 
-sprite.onerror = () => {
-  console.error("Sprite failed to load");
-};
+const barnImg = new Image();
+barnImg.src = "barn.png";
+
+const fenceImg = new Image();
+fenceImg.src = "fence.png";
+
+let imagesLoaded = 0;
+const totalImages = 5;
+
+function imageLoaded() {
+  imagesLoaded++;
+}
+
+[grassImg, dirtImg, cartImg, barnImg, fenceImg].forEach(img => {
+  img.onload = imageLoaded;
+});
 
 /* ================= GAME STATE ================= */
 
@@ -67,61 +81,42 @@ function getLayout() {
 /* ================= DRAWING ================= */
 
 function drawGrass() {
-  // draw grass tile from sprite (top-left 128x128)
-  for (let x = 0; x < WORLD_WIDTH; x += 128) {
-    for (let y = 0; y < WORLD_HEIGHT; y += 128) {
-      ctx.drawImage(sprite, 0, 0, 128, 128, x, y, 128, 128);
+  for (let x = 0; x < WORLD_WIDTH; x += TILE) {
+    for (let y = 0; y < WORLD_HEIGHT; y += TILE) {
+      ctx.drawImage(grassImg, x, y, TILE, TILE);
     }
   }
 }
 
-/* ---------- REAL DIRT ROAD (NO STONE) ---------- */
+function drawRoad(layout) {
+  for (let x = 0; x < WORLD_WIDTH; x += TILE) {
+    ctx.drawImage(dirtImg, x, layout.horizontalY, TILE, TILE);
+  }
 
-function drawDirtRoad(layout) {
-  ctx.fillStyle = "#8b5a2b"; // base dirt color
-
-  // horizontal
-  ctx.fillRect(
-    0,
-    layout.horizontalY,
-    WORLD_WIDTH,
-    ROAD_WIDTH
-  );
-
-  // vertical
-  ctx.fillRect(
-    layout.verticalX,
-    0,
-    ROAD_WIDTH,
-    layout.horizontalY + ROAD_WIDTH
-  );
-
-  // simple texture noise
-  ctx.fillStyle = "rgba(0,0,0,0.15)";
-  for (let i = 0; i < 200; i++) {
-    ctx.fillRect(
-      Math.random() * WORLD_WIDTH,
-      layout.horizontalY + Math.random() * ROAD_WIDTH,
-      4,
-      4
-    );
+  for (let y = 0; y < layout.horizontalY + ROAD_WIDTH; y += TILE) {
+    ctx.drawImage(dirtImg, layout.verticalX, y, TILE, TILE);
   }
 }
 
-/* ---------- BARN ---------- */
-
 function drawBarn(layout) {
   ctx.drawImage(
-    sprite,
-    384, 0, 128, 128,   // barn in sprite
+    barnImg,
     layout.verticalX,
     60,
-    256,
-    256
+    TILE * 2,
+    TILE * 2
   );
 }
 
-/* ---------- CART ---------- */
+function drawFence(layout) {
+  ctx.drawImage(
+    fenceImg,
+    WORLD_WIDTH - TILE * 2,
+    layout.horizontalY,
+    TILE * 2,
+    TILE
+  );
+}
 
 function drawCart() {
   ctx.save();
@@ -129,12 +124,11 @@ function drawCart() {
   ctx.rotate(cart.rotation);
 
   ctx.drawImage(
-    sprite,
-    256, 0, 128, 128,   // cart in sprite
-    -64,
-    -64,
-    128,
-    128
+    cartImg,
+    -TILE / 2,
+    -TILE / 2,
+    TILE,
+    TILE
   );
 
   ctx.restore();
@@ -170,7 +164,7 @@ function updateCart(layout) {
   let targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
-  if (cart.x > WORLD_WIDTH - 100) endGame("lose");
+  if (cart.x > WORLD_WIDTH - TILE * 2) endGame("lose");
   if (cart.y < 120) endGame("win");
 }
 
@@ -203,7 +197,7 @@ canvas.addEventListener("click", () => {
 /* ================= LOOP ================= */
 
 function gameLoop() {
-  if (!spriteLoaded) {
+  if (imagesLoaded < totalImages) {
     requestAnimationFrame(gameLoop);
     return;
   }
@@ -220,8 +214,9 @@ function gameLoop() {
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
   drawGrass();
-  drawDirtRoad(layout);
+  drawRoad(layout);
   drawBarn(layout);
+  drawFence(layout);
   drawCart();
   updateCart(layout);
 
