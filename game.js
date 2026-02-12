@@ -22,30 +22,19 @@ const INTERSECTION_SIZE = 140;
 /* ================= LOAD IMAGES ================= */
 
 const grassImg = new Image();
-grassImg.src = "grass.png";
+grassImg.src = "./grass.png";
 
 const dirtImg = new Image();
-dirtImg.src = "dirt.png";
+dirtImg.src = "./dirt.png";
 
 const cartImg = new Image();
-cartImg.src = "cart.png";
+cartImg.src = "./cart.png";
 
 const barnImg = new Image();
-barnImg.src = "barn.png";
+barnImg.src = "./barn.png";
 
 const fenceImg = new Image();
-fenceImg.src = "fence.png";
-
-let imagesLoaded = 0;
-const totalImages = 5;
-
-function imageLoaded() {
-  imagesLoaded++;
-}
-
-[grassImg, dirtImg, cartImg, barnImg, fenceImg].forEach(img => {
-  img.onload = imageLoaded;
-});
+fenceImg.src = "./fence.png";
 
 /* ================= GAME STATE ================= */
 
@@ -81,6 +70,7 @@ function getLayout() {
 /* ================= DRAWING ================= */
 
 function drawGrass() {
+  if (!grassImg.complete) return;
   for (let x = 0; x < WORLD_WIDTH; x += TILE) {
     for (let y = 0; y < WORLD_HEIGHT; y += TILE) {
       ctx.drawImage(grassImg, x, y, TILE, TILE);
@@ -89,6 +79,8 @@ function drawGrass() {
 }
 
 function drawRoad(layout) {
+  if (!dirtImg.complete) return;
+
   for (let x = 0; x < WORLD_WIDTH; x += TILE) {
     ctx.drawImage(dirtImg, x, layout.horizontalY, TILE, TILE);
   }
@@ -99,6 +91,8 @@ function drawRoad(layout) {
 }
 
 function drawBarn(layout) {
+  if (!barnImg.complete) return;
+
   ctx.drawImage(
     barnImg,
     layout.verticalX,
@@ -109,6 +103,8 @@ function drawBarn(layout) {
 }
 
 function drawFence(layout) {
+  if (!fenceImg.complete) return;
+
   ctx.drawImage(
     fenceImg,
     WORLD_WIDTH - TILE * 2,
@@ -119,6 +115,8 @@ function drawFence(layout) {
 }
 
 function drawCart() {
+  if (!cartImg.complete) return;
+
   ctx.save();
   ctx.translate(cart.x, cart.y);
   ctx.rotate(cart.rotation);
@@ -197,11 +195,6 @@ canvas.addEventListener("click", () => {
 /* ================= LOOP ================= */
 
 function gameLoop() {
-  if (imagesLoaded < totalImages) {
-    requestAnimationFrame(gameLoop);
-    return;
-  }
-
   const layout = getLayout();
   const scale = getScale();
 
