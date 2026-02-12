@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medieval Pixel Cart</title>
+<style>
+body { margin:0; background:#2c5e2c; overflow:hidden; }
+canvas { display:block; width:100vw; height:100vh; image-rendering: pixelated; }
+#ui {
+  position:absolute;
+  top:40%;
+  width:100%;
+  text-align:center;
+  color:white;
+  font-size:28px;
+  display:none;
+}
+button { font-size:20px; padding:10px 20px; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui">
+  <div id="result"></div>
+  <button onclick="restartGame()">Restart</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
