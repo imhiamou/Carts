@@ -15,7 +15,7 @@ const ROAD_WIDTH = 128;
 const INTERSECTION_SIZE = 128;
 
 const sprite = new Image();
-sprite.src = "assets/sprites.png";
+sprite.src = "sprites.png";
 
 let intersection = { turnUp:false };
 
