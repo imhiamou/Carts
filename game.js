@@ -15,25 +15,22 @@ resize();
 const WORLD_WIDTH = 1000;
 const WORLD_HEIGHT = 700;
 
-const ROAD_WIDTH = 128;
-const INTERSECTION_SIZE = 128;
+const ROAD_WIDTH = 140;
+const INTERSECTION_SIZE = 140;
 
 /* ================= SPRITE ================= */
 
 const sprite = new Image();
-sprite.src = "sprites.png"; // MUST match exact filename
+sprite.src = "sprites.png"; // must match filename exactly
 
 let spriteLoaded = false;
-let spriteFailed = false;
 
 sprite.onload = () => {
-  console.log("Sprite loaded successfully");
   spriteLoaded = true;
 };
 
 sprite.onerror = () => {
   console.error("Sprite failed to load");
-  spriteFailed = true;
 };
 
 /* ================= GAME STATE ================= */
@@ -70,6 +67,7 @@ function getLayout() {
 /* ================= DRAWING ================= */
 
 function drawGrass() {
+  // draw grass tile from sprite (top-left 128x128)
   for (let x = 0; x < WORLD_WIDTH; x += 128) {
     for (let y = 0; y < WORLD_HEIGHT; y += 128) {
       ctx.drawImage(sprite, 0, 0, 128, 128, x, y, 128, 128);
@@ -77,26 +75,53 @@ function drawGrass() {
   }
 }
 
-function drawRoad(layout) {
-  for (let x = 0; x < WORLD_WIDTH; x += 128) {
-    ctx.drawImage(sprite, 128, 0, 128, 128, x, layout.horizontalY, 128, 128);
-  }
+/* ---------- REAL DIRT ROAD (NO STONE) ---------- */
 
-  for (let y = 0; y < layout.horizontalY + ROAD_WIDTH; y += 128) {
-    ctx.drawImage(sprite, 128, 0, 128, 128, layout.verticalX, y, 128, 128);
+function drawDirtRoad(layout) {
+  ctx.fillStyle = "#8b5a2b"; // base dirt color
+
+  // horizontal
+  ctx.fillRect(
+    0,
+    layout.horizontalY,
+    WORLD_WIDTH,
+    ROAD_WIDTH
+  );
+
+  // vertical
+  ctx.fillRect(
+    layout.verticalX,
+    0,
+    ROAD_WIDTH,
+    layout.horizontalY + ROAD_WIDTH
+  );
+
+  // simple texture noise
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
+  for (let i = 0; i < 200; i++) {
+    ctx.fillRect(
+      Math.random() * WORLD_WIDTH,
+      layout.horizontalY + Math.random() * ROAD_WIDTH,
+      4,
+      4
+    );
   }
 }
+
+/* ---------- BARN ---------- */
 
 function drawBarn(layout) {
   ctx.drawImage(
     sprite,
-    384, 0, 128, 128,
+    384, 0, 128, 128,   // barn in sprite
     layout.verticalX,
-    50,
+    60,
     256,
     256
   );
 }
+
+/* ---------- CART ---------- */
 
 function drawCart() {
   ctx.save();
@@ -105,9 +130,11 @@ function drawCart() {
 
   ctx.drawImage(
     sprite,
-    256, 0, 128, 128,
-    -64, -64,
-    128, 128
+    256, 0, 128, 128,   // cart in sprite
+    -64,
+    -64,
+    128,
+    128
   );
 
   ctx.restore();
@@ -144,7 +171,7 @@ function updateCart(layout) {
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
   if (cart.x > WORLD_WIDTH - 100) endGame("lose");
-  if (cart.y < 100) endGame("win");
+  if (cart.y < 120) endGame("win");
 }
 
 /* ================= GAME STATE ================= */
@@ -176,16 +203,6 @@ canvas.addEventListener("click", () => {
 /* ================= LOOP ================= */
 
 function gameLoop() {
-
-  // If sprite failed, show error visually
-  if (spriteFailed) {
-    ctx.fillStyle = "red";
-    ctx.font = "30px Arial";
-    ctx.fillText("Sprite failed to load.", 50, 100);
-    return;
-  }
-
-  // Wait until sprite actually loads
   if (!spriteLoaded) {
     requestAnimationFrame(gameLoop);
     return;
@@ -203,7 +220,7 @@ function gameLoop() {
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
   drawGrass();
-  drawRoad(layout);
+  drawDirtRoad(layout);
   drawBarn(layout);
   drawCart();
   updateCart(layout);
