@@ -109,8 +109,8 @@ function drawCart() {
 
   ctx.drawImage(
     cartImg,
-    -TILE / 2,
-    -TILE / 2,
+    -TILE / 1,
+    -TILE / 1,
     TILE,
     TILE
   );
