@@ -89,7 +89,7 @@ function drawIntersectionArrow() {
   ctx.rotate(rotation);
 
   // Adjust size if needed
-  const size = 180;
+  const size =50;
 
   ctx.drawImage(
     arrowImg,
@@ -151,7 +151,7 @@ function update() {
     endGame("lose");
   }
 
-  if (cart.y < 120) {
+  if (cart.y < 70) {
     endGame("win");
   }
 }
