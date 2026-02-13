@@ -15,14 +15,11 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const TILE = 256; // road tile size
+const TILE = 256;
 const ROAD_WIDTH = TILE;
 const INTERSECTION_SIZE = TILE;
 
 /* ================= LOAD IMAGES ================= */
-
-const mapImg = new Image();
-mapImg.src = "./map01.png";
 
 const cartImg = new Image();
 cartImg.src = "./cart.png";
@@ -59,18 +56,6 @@ function getLayout() {
 }
 
 /* ================= DRAWING ================= */
-
-function drawBackground() {
-  if (!mapImg.complete) return;
-
-  ctx.drawImage(
-    mapImg,
-    0,
-    0,
-    WORLD_WIDTH,
-    WORLD_HEIGHT
-  );
-}
 
 function drawCart() {
   if (!cartImg.complete) return;
@@ -164,7 +149,6 @@ function gameLoop() {
 
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-  drawBackground();
   drawCart();
   updateCart(layout);
 
