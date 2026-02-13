@@ -151,7 +151,7 @@ function update() {
     endGame("lose");
   }
 
-  if (cart.y < 120) {
+  if (cart.y < 80) {
     endGame("win");
   }
 }
