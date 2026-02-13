@@ -78,8 +78,8 @@ function drawMap() {
 function drawIntersectionArrow() {
   const box = getIntersectionBox();
 
-  const centerX = box.x + box.size / 2;
-  const centerY = box.y + box.size / 2;
+  const centerX = box.x + box.size / 4;
+  const centerY = box.y + box.size / 4;
 
   ctx.save();
   ctx.translate(centerX, centerY);
