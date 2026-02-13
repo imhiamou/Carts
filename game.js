@@ -16,7 +16,7 @@ const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
 const TILE = 256;
-const INTERSECTION_SIZE = TILE;
+const INTERSECTION_SIZE = 120;
 
 /* ================= LOAD IMAGES ================= */
 
@@ -58,8 +58,8 @@ function getScale() {
 
 function getIntersectionBox() {
   return {
-    x: WORLD_WIDTH / 2 - TILE / 2,
-    y: WORLD_HEIGHT / 2 - TILE / 2,
+    x: WORLD_WIDTH / 2 - INTERSECTION_SIZE / 2,
+    y: WORLD_HEIGHT / 2 - INTERSECTION_SIZE / 2,
     size: INTERSECTION_SIZE
   };
 }
