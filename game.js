@@ -89,7 +89,7 @@ function drawIntersectionArrow() {
   const rotation = intersection.turnUp ? -Math.PI / 2 : 0;
   ctx.rotate(rotation);
 
-  const size = 120; // smaller visual sign
+  const size = 120;
 
   ctx.drawImage(
     arrowImg,
@@ -155,7 +155,7 @@ function update() {
   let targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
-  // Proper center-based boundaries
+  // Center-based boundaries
   if (cart.x > WORLD_WIDTH - CART_SIZE / 2) {
     endGame("lose");
   }
@@ -194,15 +194,18 @@ function restartGame() {
 
 /* ================= INPUT ================= */
 
-// Click only works inside smaller intersection box
 canvas.addEventListener("click", (e) => {
   if (gameState !== "playing") return;
 
   const scale = getScale();
   const rect = canvas.getBoundingClientRect();
 
-  const mouseX = (e.clientX - rect.left) / scale;
-  const mouseY = (e.clientY - rect.top) / scale;
+  // Must match centering logic in gameLoop
+  const offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
+  const offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
+
+  const mouseX = (e.clientX - rect.left - offsetX) / scale;
+  const mouseY = (e.clientY - rect.top - offsetY) / scale;
 
   const box = getIntersectionBox();
 
