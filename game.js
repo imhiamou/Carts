@@ -15,7 +15,7 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const TILE = 256;
+const TILE = 50;
 const INTERSECTION_SIZE = TILE;
 
 /* ================= LOAD IMAGES ================= */
