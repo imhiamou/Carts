@@ -137,12 +137,12 @@ function update() {
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
   // Lose condition
-  if (cart.x > WORLD_WIDTH - CART_SIZE / 2) {
+  if (cart.x > WORLD_WIDTH - CART_SIZE / 4) {
     endGame("lose");
   }
 
   // Win condition
-  if (cart.y < CART_SIZE / 2) {
+  if (cart.y < CART_SIZE / 4) {
     endGame("win");
   }
 }
