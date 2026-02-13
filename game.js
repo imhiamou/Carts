@@ -15,7 +15,7 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const TILE = 50;
+const TILE = 100;
 const INTERSECTION_SIZE = TILE;
 
 /* ================= LOAD IMAGES ================= */
@@ -57,8 +57,8 @@ function getScale() {
 
 function getIntersectionBox() {
   return {
-    x: WORLD_WIDTH / 2 - TILE / 2,
-    y: WORLD_HEIGHT / 2 - TILE / 2,
+    x: WORLD_WIDTH / 2 - TILE / 4,
+    y: WORLD_HEIGHT / 2 - TILE / 4,
     size: INTERSECTION_SIZE
   };
 }
@@ -78,8 +78,8 @@ function drawMap() {
 function drawIntersectionArrow() {
   const box = getIntersectionBox();
 
-  const centerX = box.x + box.size / 4;
-  const centerY = box.y + box.size / 4;
+  const centerX = box.x + box.size / 8;
+  const centerY = box.y + box.size / 8;
 
   ctx.save();
   ctx.translate(centerX, centerY);
