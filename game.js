@@ -15,9 +15,8 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const TILE = 256;
-const INTERSECTION_SIZE = 60;   // smaller trigger zone
-const CART_SIZE = 90;           // smaller cart
+const CART_SIZE = 90;
+const INTERSECTION_VISUAL_SIZE = 60;
 
 /* ================= LOAD IMAGES ================= */
 
@@ -35,6 +34,8 @@ arrowImg.src = "arrow.png";
 let gameState = "playing";
 
 let intersection = {
+  x: WORLD_WIDTH / 2,
+  y: WORLD_HEIGHT / 2,
   turnUp: false
 };
 
@@ -57,46 +58,25 @@ function getScale() {
   );
 }
 
-function getIntersectionBox() {
-  return {
-    x: WORLD_WIDTH / 2 - INTERSECTION_SIZE / 2,
-    y: WORLD_HEIGHT / 2 - INTERSECTION_SIZE / 2,
-    size: INTERSECTION_SIZE
-  };
-}
-
 /* ================= DRAW ================= */
 
 function drawMap() {
-  ctx.drawImage(
-    mapImg,
-    0,
-    0,
-    WORLD_WIDTH,
-    WORLD_HEIGHT
-  );
+  ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 }
 
 function drawIntersectionArrow() {
-  const box = getIntersectionBox();
-
-  const centerX = box.x + box.size / 2;
-  const centerY = box.y + box.size / 2;
-
   ctx.save();
-  ctx.translate(centerX, centerY);
+  ctx.translate(intersection.x, intersection.y);
 
   const rotation = intersection.turnUp ? -Math.PI / 2 : 0;
   ctx.rotate(rotation);
 
-  const size = 120;
-
   ctx.drawImage(
     arrowImg,
-    -size / 2,
-    -size / 2,
-    size,
-    size
+    -INTERSECTION_VISUAL_SIZE / 2,
+    -INTERSECTION_VISUAL_SIZE / 2,
+    INTERSECTION_VISUAL_SIZE,
+    INTERSECTION_VISUAL_SIZE
   );
 
   ctx.restore();
@@ -105,8 +85,7 @@ function drawIntersectionArrow() {
 function drawCart() {
   ctx.save();
 
-  const bobAmount = 3;
-  const bob = Math.sin(cart.animTime) * bobAmount;
+  const bob = Math.sin(cart.animTime) * 3;
 
   ctx.translate(cart.x, cart.y + bob);
   ctx.rotate(cart.rotation);
@@ -127,37 +106,42 @@ function drawCart() {
 function update() {
   if (gameState !== "playing") return;
 
-const centerX = WORLD_WIDTH / 2;
-const centerY = WORLD_HEIGHT / 2;
+  const prevX = cart.x;
+  const prevY = cart.y;
 
-// Turning from horizontal to vertical
-if (
-  cart.vx > 0 &&                 // moving right
-  cart.x >= centerX &&           // reached vertical center line
-  Math.abs(cart.y - centerY) < 2 // aligned vertically
-) {
-  if (intersection.turnUp) {
-    cart.vx = 0;
-    cart.vy = -cart.speed;
-  }
-}
-
-
+  // Move first
   cart.x += cart.vx;
   cart.y += cart.vy;
 
+  // Detect crossing of intersection center (horizontal movement)
+  if (
+    cart.vx > 0 &&                                  // moving right
+    prevX < intersection.x &&
+    cart.x >= intersection.x &&
+    Math.abs(cart.y - intersection.y) < 1           // aligned vertically
+  ) {
+    if (intersection.turnUp) {
+      cart.x = intersection.x;                      // snap exactly
+      cart.vx = 0;
+      cart.vy = -cart.speed;
+    }
+  }
+
+  // Animate
   if (cart.vx !== 0 || cart.vy !== 0) {
     cart.animTime += 0.25;
   }
 
-  let targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
+  // Smooth rotation
+  const targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
-  // Center-based boundaries
+  // Lose condition
   if (cart.x > WORLD_WIDTH - CART_SIZE / 2) {
     endGame("lose");
   }
 
+  // Win condition
   if (cart.y < CART_SIZE / 2) {
     endGame("win");
   }
@@ -198,21 +182,18 @@ canvas.addEventListener("click", (e) => {
   const scale = getScale();
   const rect = canvas.getBoundingClientRect();
 
-  // Must match centering logic in gameLoop
   const offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
   const offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
 
   const mouseX = (e.clientX - rect.left - offsetX) / scale;
   const mouseY = (e.clientY - rect.top - offsetY) / scale;
 
-  const box = getIntersectionBox();
+  // Small clickable radius around intersection center
+  const dx = mouseX - intersection.x;
+  const dy = mouseY - intersection.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
 
-  if (
-    mouseX > box.x &&
-    mouseX < box.x + box.size &&
-    mouseY > box.y &&
-    mouseY < box.y + box.size
-  ) {
+  if (distance < INTERSECTION_VISUAL_SIZE / 2) {
     intersection.turnUp = !intersection.turnUp;
   }
 });
