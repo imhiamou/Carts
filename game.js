@@ -109,51 +109,55 @@ function update() {
   const prevX = cart.x;
   const prevY = cart.y;
 
-  // Move first
-  cart.x += cart.vx;
-  cart.y += cart.vy;
+  const nextX = cart.x + cart.vx;
+  const nextY = cart.y + cart.vy;
 
-  // Detect crossing of intersection center (horizontal movement)
+  /* ----- INTERSECTION CENTER TURN ----- */
   if (
-    cart.vx > 0 &&                                  // moving right
+    cart.vx > 0 &&
     prevX < intersection.x &&
-    cart.x >= intersection.x &&
-    Math.abs(cart.y - intersection.y) < 1           // aligned vertically
+    nextX >= intersection.x &&
+    Math.abs(cart.y - intersection.y) < 1
   ) {
     if (intersection.turnUp) {
-      cart.x = intersection.x;                      // snap exactly
+      cart.x = intersection.x;
       cart.vx = 0;
       cart.vy = -cart.speed;
     }
   }
 
-  // Animate
+  /* ----- RIGHT BOUNDARY (LOSE) ----- */
+  if (
+    cart.vx > 0 &&
+    nextX + CART_SIZE / 2 >= WORLD_WIDTH
+  ) {
+    cart.x = WORLD_WIDTH - CART_SIZE / 2;
+    endGame("lose");
+    return;
+  }
+
+  /* ----- TOP BOUNDARY (WIN) ----- */
+  if (
+    cart.vy < 0 &&
+    nextY - CART_SIZE / 2 <= 0
+  ) {
+    cart.y = CART_SIZE / 2;
+    endGame("win");
+    return;
+  }
+
+  /* ----- COMMIT MOVEMENT ----- */
+  cart.x = nextX;
+  cart.y = nextY;
+
+  /* ----- ANIMATION ----- */
   if (cart.vx !== 0 || cart.vy !== 0) {
     cart.animTime += 0.25;
   }
 
-  // Smooth rotation
+  /* ----- ROTATION ----- */
   const targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
-
-// ---- RIGHT BOUNDARY (Lose) ----
-if (
-  cart.vx > 0 &&
-  cart.x + CART_SIZE / 2 >= WORLD_WIDTH
-) {
-  cart.x = WORLD_WIDTH - CART_SIZE / 2; // snap
-  endGame("lose");
-}
-
-// ---- TOP BOUNDARY (Win) ----
-if (
-  cart.vy < 0 &&
-  cart.y - CART_SIZE / 2 <= 0
-) {
-  cart.y = CART_SIZE / 2; // snap
-  endGame("win");
-}
-
 }
 
 /* ================= GAME STATE ================= */
@@ -197,7 +201,6 @@ canvas.addEventListener("click", (e) => {
   const mouseX = (e.clientX - rect.left - offsetX) / scale;
   const mouseY = (e.clientY - rect.top - offsetY) / scale;
 
-  // Small clickable radius around intersection center
   const dx = mouseX - intersection.x;
   const dy = mouseY - intersection.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
