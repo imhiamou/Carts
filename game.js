@@ -43,7 +43,8 @@ let cart = {
   speed: 4,
   vx: 4,
   vy: 0,
-  rotation: 0
+  rotation: 0,
+  animTime: 0
 };
 
 /* ================= HELPERS ================= */
@@ -84,12 +85,10 @@ function drawIntersectionArrow() {
   ctx.save();
   ctx.translate(centerX, centerY);
 
-  // Rotate based on intersection direction
   const rotation = intersection.turnUp ? -Math.PI / 2 : 0;
   ctx.rotate(rotation);
 
-  // Adjust size if needed
-  const size =80;
+  const size = 180;
 
   ctx.drawImage(
     arrowImg,
@@ -104,13 +103,18 @@ function drawIntersectionArrow() {
 
 function drawCart() {
   ctx.save();
-  ctx.translate(cart.x, cart.y);
+
+  // Subtle bobbing animation
+  const bobAmount = 4;
+  const bob = Math.sin(cart.animTime) * bobAmount;
+
+  ctx.translate(cart.x, cart.y + bob);
   ctx.rotate(cart.rotation);
 
   ctx.drawImage(
     cartImg,
-    -TILE / 6,
-    -TILE / 6,
+    -TILE / 2,
+    -TILE / 2,
     TILE,
     TILE
   );
@@ -144,14 +148,22 @@ function update() {
   cart.x += cart.vx;
   cart.y += cart.vy;
 
+  // Animate only while moving
+  if (cart.vx !== 0 || cart.vy !== 0) {
+    cart.animTime += 0.25;
+  }
+
+  // Smooth rotation
   let targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
+  // Lose condition
   if (cart.x > WORLD_WIDTH - TILE) {
     endGame("lose");
   }
 
-  if (cart.y < 60) {
+  // Win condition
+  if (cart.y < 120) {
     endGame("win");
   }
 }
@@ -175,6 +187,7 @@ function restartGame() {
   cart.vx = cart.speed;
   cart.vy = 0;
   cart.rotation = 0;
+  cart.animTime = 0;
 
   intersection.turnUp = false;
   gameState = "playing";
@@ -211,7 +224,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-/* ================= START ================= */
+/* ================= START AFTER MAP LOAD ================= */
 
 mapImg.onload = () => {
   gameLoop();
