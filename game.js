@@ -89,7 +89,7 @@ function drawIntersectionArrow() {
   ctx.rotate(rotation);
 
   // Adjust size if needed
-  const size = 180;
+  const size = 90;
 
   ctx.drawImage(
     arrowImg,
