@@ -15,7 +15,7 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const CART_SIZE = 90;
+const CART_SIZE = 150;
 const INTERSECTION_VISUAL_SIZE = 60;
 
 /* ================= LOAD IMAGES ================= */
