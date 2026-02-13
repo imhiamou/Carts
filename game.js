@@ -63,8 +63,6 @@ function getIntersectionBox() {
 /* ================= DRAW ================= */
 
 function drawMap() {
-  if (!mapImg.complete) return;
-
   ctx.drawImage(
     mapImg,
     0,
@@ -75,8 +73,6 @@ function drawMap() {
 }
 
 function drawCart() {
-  if (!cartImg.complete) return;
-
   ctx.save();
   ctx.translate(cart.x, cart.y);
   ctx.rotate(cart.rotation);
@@ -118,16 +114,13 @@ function update() {
   cart.x += cart.vx;
   cart.y += cart.vy;
 
-  // Smooth rotation
   let targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
-  // Lose condition
   if (cart.x > WORLD_WIDTH - TILE) {
     endGame("lose");
   }
 
-  // Win condition
   if (cart.y < 120) {
     endGame("win");
   }
@@ -187,4 +180,8 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-gameLoop();
+/* ================= START AFTER MAP LOAD ================= */
+
+mapImg.onload = () => {
+  gameLoop();
+};
