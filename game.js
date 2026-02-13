@@ -15,26 +15,16 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const TILE = 256; // road tile size
-const ROAD_WIDTH = TILE;
+const TILE = 256;
 const INTERSECTION_SIZE = TILE;
 
 /* ================= LOAD IMAGES ================= */
 
-const grassImg = new Image();
-grassImg.src = "./grass.png";
-
-const roadImg = new Image();
-roadImg.src = "./vertical_road.png";
+const mapImg = new Image();
+mapImg.src = "./map01.png";
 
 const cartImg = new Image();
 cartImg.src = "./cart.png";
-
-const barnImg = new Image();
-barnImg.src = "./barn.png";
-
-const blockImg = new Image();
-blockImg.src = "./road_block.png";
 
 /* ================= GAME STATE ================= */
 
@@ -62,81 +52,22 @@ function getScale() {
 
 function getLayout() {
   return {
-    horizontalY: WORLD_HEIGHT / 2 - ROAD_WIDTH / 2,
-    verticalX: WORLD_WIDTH / 2 - ROAD_WIDTH / 2
+    horizontalY: WORLD_HEIGHT / 2 - TILE / 2,
+    verticalX: WORLD_WIDTH / 2 - TILE / 2
   };
 }
 
 /* ================= DRAWING ================= */
 
 function drawBackground() {
-  if (!grassImg.complete) return;
+  if (!mapImg.complete) return;
 
   ctx.drawImage(
-    grassImg,
+    mapImg,
     0,
     0,
     WORLD_WIDTH,
     WORLD_HEIGHT
-  );
-}
-
-function drawRoad(layout) {
-  if (!roadImg.complete) return;
-
-  /* ---- Vertical Road ---- */
-  for (let y = 0; y < WORLD_HEIGHT; y += TILE) {
-    ctx.drawImage(
-      roadImg,
-      layout.verticalX,
-      y,
-      TILE,
-      TILE
-    );
-  }
-
-  /* ---- Horizontal Road ---- */
-  for (let x = 0; x < WORLD_WIDTH; x += TILE) {
-    ctx.save();
-    ctx.translate(
-      x + TILE / 2,
-      layout.horizontalY + TILE / 2
-    );
-    ctx.rotate(Math.PI / 2);
-
-    ctx.drawImage(
-      roadImg,
-      -TILE / 2,
-      -TILE / 2,
-      TILE,
-      TILE
-    );
-
-    ctx.restore();
-  }
-}
-
-function drawBarn(layout) {
-  if (!barnImg.complete) return;
-
-  ctx.drawImage(
-    barnImg,
-    layout.verticalX,
-    50,
-    TILE,
-    TILE
-  );
-}
-
-function drawBlock(layout) {
-  if (!blockImg.complete) return;
-
-  ctx.drawImage(
-    blockImg,
-    WORLD_WIDTH - TILE,
-    layout.horizontalY,
-    TILE,
-    TILE
   );
 }
 
@@ -233,9 +164,6 @@ function gameLoop() {
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
   drawBackground();
-  drawRoad(layout);
-  drawBarn(layout);
-  drawBlock(layout);
   drawCart();
   updateCart(layout);
 
