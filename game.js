@@ -16,7 +16,9 @@ const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
 const TILE = 256;
-const INTERSECTION_SIZE = 120;
+const INTERSECTION_SIZE = 80;
+const CART_SIZE = 180; 
+
 
 /* ================= LOAD IMAGES ================= */
 
@@ -113,10 +115,10 @@ function drawCart() {
 
   ctx.drawImage(
     cartImg,
-    -TILE / 2,
-    -TILE / 2,
-    TILE,
-    TILE
+    -CART_SIZE / 2,
+    -CART_SIZE / 2,
+    CART_SIZE,
+    CART_SIZE
   );
 
   ctx.restore();
@@ -158,12 +160,12 @@ function update() {
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
   // Lose condition
-  if (cart.x > WORLD_WIDTH - TILE) {
+  if (cart.x > WORLD_WIDTH - CART_SIZE) {
     endGame("lose");
   }
 
   // Win condition
-  if (cart.y < 120) {
+  if (cart.y < CART_SIZE) {
     endGame("win");
   }
 }
