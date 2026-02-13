@@ -78,8 +78,8 @@ function drawMap() {
 function drawIntersectionArrow() {
   const box = getIntersectionBox();
 
-  const centerX = box.x + box.size / 8;
-  const centerY = box.y + box.size / 8;
+  const centerX = box.x + box.size / 4;
+  const centerY = box.y + box.size / 4;
 
   ctx.save();
   ctx.translate(centerX, centerY);
@@ -109,8 +109,8 @@ function drawCart() {
 
   ctx.drawImage(
     cartImg,
-    -TILE / 1,
-    -TILE / 1,
+    -TILE / 2,
+    -TILE / 2,
     TILE,
     TILE
   );
