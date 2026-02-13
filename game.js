@@ -15,20 +15,17 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const TILE = 256;
-const ROAD_WIDTH = 256;
-const INTERSECTION_SIZE = 256;
+const TILE = 256; // road tile size
+const ROAD_WIDTH = TILE;
+const INTERSECTION_SIZE = TILE;
 
 /* ================= LOAD IMAGES ================= */
 
 const grassImg = new Image();
 grassImg.src = "./grass.png";
 
-const verticalRoadImg = new Image();
-verticalRoadImg.src = "./vertical_road.png";
-
-const intersectionImg = new Image();
-intersectionImg.src = "./intersection.png";
+const roadImg = new Image();
+roadImg.src = "./vertical_road.png";
 
 const cartImg = new Image();
 cartImg.src = "./cart.png";
@@ -85,41 +82,38 @@ function drawBackground() {
 }
 
 function drawRoad(layout) {
-  if (!verticalRoadImg.complete) return;
+  if (!roadImg.complete) return;
 
-  // Vertical road
-  ctx.drawImage(
-    verticalRoadImg,
-    layout.verticalX,
-    0,
-    ROAD_WIDTH,
-    WORLD_HEIGHT
-  );
+  /* ---- Vertical Road ---- */
+  for (let y = 0; y < WORLD_HEIGHT; y += TILE) {
+    ctx.drawImage(
+      roadImg,
+      layout.verticalX,
+      y,
+      TILE,
+      TILE
+    );
+  }
 
-  // Horizontal road
-  ctx.save();
-  ctx.translate(0, layout.horizontalY + ROAD_WIDTH / 2);
-  ctx.rotate(Math.PI / 2);
-  ctx.drawImage(
-    verticalRoadImg,
-    0,
-    -WORLD_WIDTH / 2,
-    ROAD_WIDTH,
-    WORLD_WIDTH
-  );
-  ctx.restore();
-}
+  /* ---- Horizontal Road ---- */
+  for (let x = 0; x < WORLD_WIDTH; x += TILE) {
+    ctx.save();
+    ctx.translate(
+      x + TILE / 2,
+      layout.horizontalY + TILE / 2
+    );
+    ctx.rotate(Math.PI / 2);
 
-function drawIntersection(layout) {
-  if (!intersectionImg.complete) return;
+    ctx.drawImage(
+      roadImg,
+      -TILE / 2,
+      -TILE / 2,
+      TILE,
+      TILE
+    );
 
-  ctx.drawImage(
-    intersectionImg,
-    layout.verticalX,
-    layout.horizontalY,
-    INTERSECTION_SIZE,
-    INTERSECTION_SIZE
-  );
+    ctx.restore();
+  }
 }
 
 function drawBarn(layout) {
@@ -128,7 +122,7 @@ function drawBarn(layout) {
   ctx.drawImage(
     barnImg,
     layout.verticalX,
-    80,
+    50,
     TILE,
     TILE
   );
@@ -240,7 +234,6 @@ function gameLoop() {
 
   drawBackground();
   drawRoad(layout);
-  drawIntersection(layout);
   drawBarn(layout);
   drawBlock(layout);
   drawCart();
