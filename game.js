@@ -16,9 +16,8 @@ const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
 const TILE = 256;
-const INTERSECTION_SIZE = 80;
-const CART_SIZE = 180; 
-
+const INTERSECTION_SIZE = 60;   // smaller trigger zone
+const CART_SIZE = 90;           // smaller cart
 
 /* ================= LOAD IMAGES ================= */
 
@@ -90,7 +89,7 @@ function drawIntersectionArrow() {
   const rotation = intersection.turnUp ? -Math.PI / 2 : 0;
   ctx.rotate(rotation);
 
-  const size = 180;
+  const size = 120; // smaller visual sign
 
   ctx.drawImage(
     arrowImg,
@@ -106,8 +105,7 @@ function drawIntersectionArrow() {
 function drawCart() {
   ctx.save();
 
-  // Subtle bobbing animation
-  const bobAmount = 4;
+  const bobAmount = 3;
   const bob = Math.sin(cart.animTime) * bobAmount;
 
   ctx.translate(cart.x, cart.y + bob);
@@ -150,22 +148,19 @@ function update() {
   cart.x += cart.vx;
   cart.y += cart.vy;
 
-  // Animate only while moving
   if (cart.vx !== 0 || cart.vy !== 0) {
     cart.animTime += 0.25;
   }
 
-  // Smooth rotation
   let targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
-  // Lose condition
-  if (cart.x > WORLD_WIDTH - CART_SIZE) {
+  // Proper center-based boundaries
+  if (cart.x > WORLD_WIDTH - CART_SIZE / 2) {
     endGame("lose");
   }
 
-  // Win condition
-  if (cart.y < CART_SIZE) {
+  if (cart.y < CART_SIZE / 2) {
     endGame("win");
   }
 }
@@ -199,8 +194,24 @@ function restartGame() {
 
 /* ================= INPUT ================= */
 
-canvas.addEventListener("click", () => {
-  if (gameState === "playing") {
+// Click only works inside smaller intersection box
+canvas.addEventListener("click", (e) => {
+  if (gameState !== "playing") return;
+
+  const scale = getScale();
+  const rect = canvas.getBoundingClientRect();
+
+  const mouseX = (e.clientX - rect.left) / scale;
+  const mouseY = (e.clientY - rect.top) / scale;
+
+  const box = getIntersectionBox();
+
+  if (
+    mouseX > box.x &&
+    mouseX < box.x + box.size &&
+    mouseY > box.y &&
+    mouseY < box.y + box.size
+  ) {
     intersection.turnUp = !intersection.turnUp;
   }
 });
@@ -226,7 +237,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-/* ================= START AFTER MAP LOAD ================= */
+/* ================= START ================= */
 
 mapImg.onload = () => {
   gameLoop();
