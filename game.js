@@ -127,23 +127,21 @@ function drawCart() {
 function update() {
   if (gameState !== "playing") return;
 
-  const box = getIntersectionBox();
+const centerX = WORLD_WIDTH / 2;
+const centerY = WORLD_HEIGHT / 2;
 
-  const inside =
-    cart.x > box.x &&
-    cart.x < box.x + box.size &&
-    cart.y > box.y &&
-    cart.y < box.y + box.size;
-
-  if (inside) {
-    if (intersection.turnUp) {
-      cart.vx = 0;
-      cart.vy = -cart.speed;
-    } else {
-      cart.vx = cart.speed;
-      cart.vy = 0;
-    }
+// Turning from horizontal to vertical
+if (
+  cart.vx > 0 &&                 // moving right
+  cart.x >= centerX &&           // reached vertical center line
+  Math.abs(cart.y - centerY) < 2 // aligned vertically
+) {
+  if (intersection.turnUp) {
+    cart.vx = 0;
+    cart.vy = -cart.speed;
   }
+}
+
 
   cart.x += cart.vx;
   cart.y += cart.vy;
