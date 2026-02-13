@@ -12,10 +12,10 @@ resize();
 
 /* ================= WORLD ================= */
 
-const WORLD_WIDTH = 1000;
-const WORLD_HEIGHT = 700;
+const WORLD_WIDTH = 1200;
+const WORLD_HEIGHT = 900;
 
-const TILE = 256;   // your new assets are larger
+const TILE = 256;
 const ROAD_WIDTH = 256;
 const INTERSECTION_SIZE = 256;
 
@@ -44,10 +44,10 @@ blockImg.src = "./road_block.png";
 let intersection = { turnUp: false };
 
 let cart = {
-  x: 150,
+  x: 200,
   y: WORLD_HEIGHT / 2,
-  speed: 3,
-  vx: 3,
+  speed: 4,
+  vx: 4,
   vy: 0,
   rotation: 0
 };
@@ -72,31 +72,20 @@ function getLayout() {
 
 /* ================= DRAWING ================= */
 
-function drawGrass() {
+function drawBackground() {
   if (!grassImg.complete) return;
 
-  for (let x = 0; x < WORLD_WIDTH; x += TILE) {
-    for (let y = 0; y < WORLD_HEIGHT; y += TILE) {
-      ctx.drawImage(grassImg, x, y, TILE, TILE);
-    }
-  }
+  ctx.drawImage(
+    grassImg,
+    0,
+    0,
+    WORLD_WIDTH,
+    WORLD_HEIGHT
+  );
 }
 
 function drawRoad(layout) {
   if (!verticalRoadImg.complete) return;
-
-  // Horizontal road (we rotate vertical tile)
-  ctx.save();
-  ctx.translate(WORLD_WIDTH / 2, layout.horizontalY + ROAD_WIDTH / 2);
-  ctx.rotate(Math.PI / 2);
-  ctx.drawImage(
-    verticalRoadImg,
-    -WORLD_WIDTH / 2,
-    -ROAD_WIDTH / 2,
-    WORLD_WIDTH,
-    ROAD_WIDTH
-  );
-  ctx.restore();
 
   // Vertical road
   ctx.drawImage(
@@ -104,8 +93,21 @@ function drawRoad(layout) {
     layout.verticalX,
     0,
     ROAD_WIDTH,
-    layout.horizontalY + ROAD_WIDTH
+    WORLD_HEIGHT
   );
+
+  // Horizontal road
+  ctx.save();
+  ctx.translate(0, layout.horizontalY + ROAD_WIDTH / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(
+    verticalRoadImg,
+    0,
+    -WORLD_WIDTH / 2,
+    ROAD_WIDTH,
+    WORLD_WIDTH
+  );
+  ctx.restore();
 }
 
 function drawIntersection(layout) {
@@ -126,7 +128,7 @@ function drawBarn(layout) {
   ctx.drawImage(
     barnImg,
     layout.verticalX,
-    50,
+    80,
     TILE,
     TILE
   );
@@ -193,7 +195,7 @@ function updateCart(layout) {
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
   if (cart.x > WORLD_WIDTH - TILE) endGame("lose");
-  if (cart.y < 100) endGame("win");
+  if (cart.y < 120) endGame("win");
 }
 
 /* ================= GAME STATE ================= */
@@ -206,7 +208,7 @@ function endGame(result) {
 }
 
 function restartGame() {
-  cart.x = 150;
+  cart.x = 200;
   cart.y = WORLD_HEIGHT / 2;
   cart.vx = cart.speed;
   cart.vy = 0;
@@ -236,7 +238,7 @@ function gameLoop() {
 
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-  drawGrass();
+  drawBackground();
   drawRoad(layout);
   drawIntersection(layout);
   drawBarn(layout);
