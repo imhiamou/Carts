@@ -21,10 +21,13 @@ const INTERSECTION_SIZE = TILE;
 /* ================= LOAD IMAGES ================= */
 
 const mapImg = new Image();
-mapImg.src = "./map01.png";
+mapImg.src = "map01.png";
 
 const cartImg = new Image();
-cartImg.src = "./cart.png";
+cartImg.src = "cart.png";
+
+const arrowImg = new Image();
+arrowImg.src = "arrow.png";
 
 /* ================= GAME STATE ================= */
 
@@ -70,6 +73,33 @@ function drawMap() {
     WORLD_WIDTH,
     WORLD_HEIGHT
   );
+}
+
+function drawIntersectionArrow() {
+  const box = getIntersectionBox();
+
+  const centerX = box.x + box.size / 2;
+  const centerY = box.y + box.size / 2;
+
+  ctx.save();
+  ctx.translate(centerX, centerY);
+
+  // Rotate based on intersection direction
+  const rotation = intersection.turnUp ? -Math.PI / 2 : 0;
+  ctx.rotate(rotation);
+
+  // Adjust size if needed
+  const size = 180;
+
+  ctx.drawImage(
+    arrowImg,
+    -size / 2,
+    -size / 2,
+    size,
+    size
+  );
+
+  ctx.restore();
 }
 
 function drawCart() {
@@ -174,13 +204,14 @@ function gameLoop() {
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
   drawMap();
+  drawIntersectionArrow();
   drawCart();
   update();
 
   requestAnimationFrame(gameLoop);
 }
 
-/* ================= START AFTER MAP LOAD ================= */
+/* ================= START ================= */
 
 mapImg.onload = () => {
   gameLoop();
