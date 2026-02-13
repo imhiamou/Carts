@@ -136,15 +136,24 @@ function update() {
   const targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
-  // Lose condition
-  if (cart.x > WORLD_WIDTH - CART_SIZE) {
-    endGame("lose");
-  }
+// ---- RIGHT BOUNDARY (Lose) ----
+if (
+  cart.vx > 0 &&
+  cart.x + CART_SIZE / 2 >= WORLD_WIDTH
+) {
+  cart.x = WORLD_WIDTH - CART_SIZE / 2; // snap
+  endGame("lose");
+}
 
-  // Win condition
-  if (cart.y < CART_SIZE) {
-    endGame("win");
-  }
+// ---- TOP BOUNDARY (Win) ----
+if (
+  cart.vy < 0 &&
+  cart.y - CART_SIZE / 2 <= 0
+) {
+  cart.y = CART_SIZE / 2; // snap
+  endGame("win");
+}
+
 }
 
 /* ================= GAME STATE ================= */
