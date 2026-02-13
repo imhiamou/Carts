@@ -15,7 +15,7 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const TILE = 150;
+const TILE = 256;
 const INTERSECTION_SIZE = TILE;
 
 /* ================= LOAD IMAGES ================= */
@@ -57,8 +57,8 @@ function getScale() {
 
 function getIntersectionBox() {
   return {
-    x: WORLD_WIDTH / 2 - TILE / 8,
-    y: WORLD_HEIGHT / 2 - TILE / 8,
+    x: WORLD_WIDTH / 2 - TILE / 2,
+    y: WORLD_HEIGHT / 2 - TILE / 2,
     size: INTERSECTION_SIZE
   };
 }
@@ -78,8 +78,8 @@ function drawMap() {
 function drawIntersectionArrow() {
   const box = getIntersectionBox();
 
-  const centerX = box.x + box.size / 4;
-  const centerY = box.y + box.size / 4;
+  const centerX = box.x + box.size / 2;
+  const centerY = box.y + box.size / 2;
 
   ctx.save();
   ctx.translate(centerX, centerY);
@@ -89,7 +89,7 @@ function drawIntersectionArrow() {
   ctx.rotate(rotation);
 
   // Adjust size if needed
-  const size = 90;
+  const size = 180;
 
   ctx.drawImage(
     arrowImg,
@@ -151,7 +151,7 @@ function update() {
     endGame("lose");
   }
 
-  if (cart.y < 80) {
+  if (cart.y < 120) {
     endGame("win");
   }
 }
