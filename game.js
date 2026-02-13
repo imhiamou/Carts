@@ -16,17 +16,23 @@ const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
 const TILE = 256;
-const ROAD_WIDTH = TILE;
 const INTERSECTION_SIZE = TILE;
 
 /* ================= LOAD IMAGES ================= */
+
+const mapImg = new Image();
+mapImg.src = "./map01.png";
 
 const cartImg = new Image();
 cartImg.src = "./cart.png";
 
 /* ================= GAME STATE ================= */
 
-let intersection = { turnUp: false };
+let gameState = "playing";
+
+let intersection = {
+  turnUp: false
+};
 
 let cart = {
   x: 200,
@@ -37,8 +43,6 @@ let cart = {
   rotation: 0
 };
 
-let gameState = "playing";
-
 /* ================= HELPERS ================= */
 
 function getScale() {
@@ -48,14 +52,27 @@ function getScale() {
   );
 }
 
-function getLayout() {
+function getIntersectionBox() {
   return {
-    horizontalY: WORLD_HEIGHT / 2 - ROAD_WIDTH / 2,
-    verticalX: WORLD_WIDTH / 2 - ROAD_WIDTH / 2
+    x: WORLD_WIDTH / 2 - TILE / 2,
+    y: WORLD_HEIGHT / 2 - TILE / 2,
+    size: INTERSECTION_SIZE
   };
 }
 
-/* ================= DRAWING ================= */
+/* ================= DRAW ================= */
+
+function drawMap() {
+  if (!mapImg.complete) return;
+
+  ctx.drawImage(
+    mapImg,
+    0,
+    0,
+    WORLD_WIDTH,
+    WORLD_HEIGHT
+  );
+}
 
 function drawCart() {
   if (!cartImg.complete) return;
@@ -75,19 +92,18 @@ function drawCart() {
   ctx.restore();
 }
 
-/* ================= MOVEMENT ================= */
+/* ================= UPDATE ================= */
 
-function updateCart(layout) {
+function update() {
   if (gameState !== "playing") return;
 
-  const ix = layout.verticalX;
-  const iy = layout.horizontalY;
+  const box = getIntersectionBox();
 
   const inside =
-    cart.x > ix &&
-    cart.x < ix + INTERSECTION_SIZE &&
-    cart.y > iy &&
-    cart.y < iy + INTERSECTION_SIZE;
+    cart.x > box.x &&
+    cart.x < box.x + box.size &&
+    cart.y > box.y &&
+    cart.y < box.y + box.size;
 
   if (inside) {
     if (intersection.turnUp) {
@@ -102,19 +118,31 @@ function updateCart(layout) {
   cart.x += cart.vx;
   cart.y += cart.vy;
 
+  // Smooth rotation
   let targetRotation = cart.vx !== 0 ? 0 : -Math.PI / 2;
   cart.rotation += (targetRotation - cart.rotation) * 0.15;
 
-  if (cart.x > WORLD_WIDTH - TILE) endGame("lose");
-  if (cart.y < 120) endGame("win");
+  // Lose condition
+  if (cart.x > WORLD_WIDTH - TILE) {
+    endGame("lose");
+  }
+
+  // Win condition
+  if (cart.y < 120) {
+    endGame("win");
+  }
 }
 
 /* ================= GAME STATE ================= */
 
 function endGame(result) {
   gameState = result;
-  document.getElementById("ui").style.display = "block";
-  document.getElementById("result").innerText =
+
+  const ui = document.getElementById("ui");
+  const resultText = document.getElementById("result");
+
+  ui.style.display = "block";
+  resultText.innerText =
     result === "win" ? "🏆 YOU WIN" : "💀 YOU LOSE";
 }
 
@@ -124,21 +152,24 @@ function restartGame() {
   cart.vx = cart.speed;
   cart.vy = 0;
   cart.rotation = 0;
+
   intersection.turnUp = false;
   gameState = "playing";
+
   document.getElementById("ui").style.display = "none";
 }
 
 /* ================= INPUT ================= */
 
 canvas.addEventListener("click", () => {
-  intersection.turnUp = !intersection.turnUp;
+  if (gameState === "playing") {
+    intersection.turnUp = !intersection.turnUp;
+  }
 });
 
 /* ================= LOOP ================= */
 
 function gameLoop() {
-  const layout = getLayout();
   const scale = getScale();
 
   ctx.setTransform(
@@ -149,8 +180,9 @@ function gameLoop() {
 
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
+  drawMap();
   drawCart();
-  updateCart(layout);
+  update();
 
   requestAnimationFrame(gameLoop);
 }
