@@ -57,8 +57,8 @@ function getScale() {
 
 function getIntersectionBox() {
   return {
-    x: WORLD_WIDTH / 2 - TILE / 4,
-    y: WORLD_HEIGHT / 2 - TILE / 4,
+    x: WORLD_WIDTH / 2 - TILE / 8,
+    y: WORLD_HEIGHT / 2 - TILE / 8,
     size: INTERSECTION_SIZE
   };
 }
