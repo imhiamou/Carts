@@ -15,7 +15,8 @@ resize();
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-const TILE = 256;
+const TILE = 256; // road tile size
+const ROAD_WIDTH = TILE;
 const INTERSECTION_SIZE = TILE;
 
 /* ================= LOAD IMAGES ================= */
@@ -52,8 +53,8 @@ function getScale() {
 
 function getLayout() {
   return {
-    horizontalY: WORLD_HEIGHT / 2 - TILE / 2,
-    verticalX: WORLD_WIDTH / 2 - TILE / 2
+    horizontalY: WORLD_HEIGHT / 2 - ROAD_WIDTH / 2,
+    verticalX: WORLD_WIDTH / 2 - ROAD_WIDTH / 2
   };
 }
 
