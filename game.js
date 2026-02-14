@@ -127,7 +127,7 @@ function update() {
   }
 
 // ----- LOSE (right side) -----
-if (cart.x >= 800) {
+if (cart.x >= 900) {
   endGame("lose");
   return;
 }
