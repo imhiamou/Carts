@@ -229,55 +229,69 @@ function gameLoop() {
 mapImg.onload = () => {
   gameLoop();
 };
-/* ================= TEST OVERRIDE (FIXED) ================= */
+/* ================= HARD TEST OVERRIDE ================= */
 
 (function () {
 
-  // Keep gameState as playing so click system works
-  gameState = "playing";
+  // Clone canvas to remove ALL previous listeners
+  const oldCanvas = canvas;
+  const newCanvas = oldCanvas.cloneNode(true);
+  oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
 
-  // Hide UI
-  const ui = document.getElementById("ui");
-  if (ui) ui.style.display = "none";
+  const ctx = newCanvas.getContext("2d");
 
-  // Force map02
-  mapImg.src = "map02.png";
+  // Load map02
+  const testMap = new Image();
+  testMap.src = "map02.png";
 
-  // Disable gameplay logic only
-  update = function () {};
-  drawCart = function () {};
-  drawIntersectionArrow = function () {};
-  endGame = function () {};
-  restartGame = function () {};
+  function resize() {
+    newCanvas.width = window.innerWidth;
+    newCanvas.height = window.innerHeight;
+  }
 
-  // Ensure map redraws
-  mapImg.onload = function () {
+  resize();
+  window.addEventListener("resize", resize);
+
+  function getScale() {
+    return Math.min(
+      newCanvas.width / WORLD_WIDTH,
+      newCanvas.height / WORLD_HEIGHT
+    );
+  }
+
+  function draw() {
     const scale = getScale();
 
     ctx.setTransform(
       scale, 0, 0, scale,
-      (canvas.width - WORLD_WIDTH * scale) / 2,
-      (canvas.height - WORLD_HEIGHT * scale) / 2
+      (newCanvas.width - WORLD_WIDTH * scale) / 2,
+      (newCanvas.height - WORLD_HEIGHT * scale) / 2
     );
 
     ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  };
+    ctx.drawImage(testMap, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  }
 
-  // Capture clicks at highest priority (before old handler)
-  canvas.addEventListener("click", function (e) {
+  testMap.onload = draw;
+
+  newCanvas.addEventListener("click", function (e) {
 
     const scale = getScale();
-    const rect = canvas.getBoundingClientRect();
+    const rect = newCanvas.getBoundingClientRect();
 
-    const offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
-    const offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
+    const offsetX = (newCanvas.width - WORLD_WIDTH * scale) / 2;
+    const offsetY = (newCanvas.height - WORLD_HEIGHT * scale) / 2;
 
     const mouseX = (e.clientX - rect.left - offsetX) / scale;
     const mouseY = (e.clientY - rect.top - offsetY) / scale;
 
     console.clear();
     console.log("X:", Math.round(mouseX), "Y:", Math.round(mouseY));
+
+  });
+
+})();
+
 
   }, true); // capture phase
 
