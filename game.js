@@ -4,14 +4,20 @@ const ctx = canvas.getContext("2d");
 const ui = document.getElementById("ui");
 const resultText = document.getElementById("result");
 
+/* ================= DEVICE DETECTION ================= */
+
+const isPhone = window.matchMedia("(max-width: 768px)").matches;
+
 /* ================= WORLD ================= */
 
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-/* ================= CART SIZE CONTROL ================= */
+/* ================= SIZE CONTROL ================= */
 
-const CART_SIZE = 250; // change this value to resize all carts
+const CART_SIZE = isPhone ? 90 : 120;
+const ARROW_SIZE = isPhone ? 70 : 80;
+const TAP_RADIUS = isPhone ? 70 : 40;
 
 /* ================= CANVAS ================= */
 
@@ -21,6 +27,8 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 resize();
+
+canvas.style.touchAction = "none"; // prevent scrolling
 
 function getScale() {
   return Math.min(
@@ -55,10 +63,8 @@ const CART_IMAGES = {
 
 const NODES = {
   start: { x: 599, y: 846 },
-
   intersection1: { x: 604, y: 567 },
   intersection2: { x: 600, y: 330 },
-
   sawmill: { x: 598, y: 218 },
   mine: { x: 351, y: 320 },
   barn: { x: 783, y: 320 },
@@ -88,7 +94,6 @@ const SPAWN_DELAY = 120;
 /* ================= RESET ================= */
 
 function resetGame() {
-
   gameState = "playing";
   delivered = 0;
   spawnIndex = 0;
@@ -106,7 +111,6 @@ function resetGame() {
 /* ================= SPAWN ================= */
 
 function spawnCart() {
-
   if (spawnIndex >= DESTINATIONS.length) return;
 
   const dest = DESTINATIONS[spawnIndex];
@@ -139,7 +143,6 @@ function update() {
   }
 
   for (let cart of activeCarts) {
-
     cart.x += cart.vx;
     cart.y += cart.vy;
 
@@ -190,14 +193,10 @@ function checkBuildings(cart) {
     if (dist < 20) {
 
       if (key === cart.destination) {
-
         delivered++;
         activeCarts = activeCarts.filter(c => c !== cart);
 
-        if (delivered === DESTINATIONS.length) {
-          winGame();
-        }
-
+        if (delivered === DESTINATIONS.length) winGame();
       } else {
         loseGame();
       }
@@ -260,9 +259,57 @@ function drawIntersectionArrows() {
     if (state === "left") img = arrowLeftImg;
     if (state === "right") img = arrowRightImg;
 
-    ctx.drawImage(img, node.x - 40, node.y - 40, 80, 80);
+    ctx.drawImage(
+      img,
+      node.x - ARROW_SIZE / 2,
+      node.y - ARROW_SIZE / 2,
+      ARROW_SIZE,
+      ARROW_SIZE
+    );
   }
 }
+
+/* ================= INPUT (MOUSE + TOUCH) ================= */
+
+function handleInput(clientX, clientY) {
+
+  if (gameState !== "playing") return;
+
+  const scale = getScale();
+  const rect = canvas.getBoundingClientRect();
+
+  const offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
+  const offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
+
+  const mouseX = (clientX - rect.left - offsetX) / scale;
+  const mouseY = (clientY - rect.top - offsetY) / scale;
+
+  for (let name of ["intersection1", "intersection2"]) {
+
+    const node = NODES[name];
+    const dist = Math.hypot(mouseX - node.x, mouseY - node.y);
+
+    if (dist < TAP_RADIUS) {
+
+      const current = intersections[name];
+
+      intersections[name] =
+        current === "up" ? "left" :
+        current === "left" ? "right" :
+        "up";
+    }
+  }
+}
+
+canvas.addEventListener("click", e => {
+  handleInput(e.clientX, e.clientY);
+});
+
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  handleInput(touch.clientX, touch.clientY);
+});
 
 /* ================= WIN / LOSE ================= */
 
@@ -278,38 +325,6 @@ function loseGame() {
   ui.style.display = "block";
 }
 
-/* ================= INPUT ================= */
-
-canvas.addEventListener("click", (e) => {
-
-  if (gameState !== "playing") return;
-
-  const scale = getScale();
-  const rect = canvas.getBoundingClientRect();
-
-  const offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
-  const offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
-
-  const mouseX = (e.clientX - rect.left - offsetX) / scale;
-  const mouseY = (e.clientY - rect.top - offsetY) / scale;
-
-  for (let name of ["intersection1", "intersection2"]) {
-
-    const node = NODES[name];
-    const dist = Math.hypot(mouseX - node.x, mouseY - node.y);
-
-    if (dist < 40) {
-
-      const current = intersections[name];
-
-      intersections[name] =
-        current === "up" ? "left" :
-        current === "left" ? "right" :
-        "up";
-    }
-  }
-});
-
 /* ================= LOOP ================= */
 
 function loop() {
@@ -322,8 +337,6 @@ mapImg.onload = () => {
   resetGame();
   loop();
 };
-
-/* ================= RESTART ================= */
 
 function restartGame() {
   resetGame();
