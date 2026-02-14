@@ -1,6 +1,9 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+const ui = document.getElementById("ui");
+const resultText = document.getElementById("result");
+
 /* ================= WORLD ================= */
 
 const WORLD_WIDTH = 1200;
@@ -50,7 +53,7 @@ const NODES = {
   intersection2: { x: 600, y: 330 },
 
   sawmill: { x: 598, y: 218 },
-  mine: { x: 351, y: 320 },
+  mine: { x: 351, y: 320 }, // FIXED Y
   barn: { x: 783, y: 320 },
   tavern: { x: 384, y: 571 },
   windmill: { x: 833, y: 564 }
@@ -66,24 +69,37 @@ const DESTINATIONS = [
 
 /* ================= GAME STATE ================= */
 
-let gameState = "playing";
-let delivered = 0;
-let spawnIndex = 0;
-let spawnTimer = 0;
+let gameState;
+let delivered;
+let spawnIndex;
+let spawnTimer;
+let activeCarts;
+let intersections;
+
 const SPAWN_DELAY = 120;
 
-/* ================= INTERSECTIONS ================= */
+/* ================= RESET ================= */
 
-let intersections = {
-  intersection1: "up",
-  intersection2: "up"
-};
+function resetGame() {
 
-/* ================= CARTS ================= */
+  gameState = "playing";
+  delivered = 0;
+  spawnIndex = 0;
+  spawnTimer = 0;
+  activeCarts = [];
 
-let activeCarts = [];
+  intersections = {
+    intersection1: "up",
+    intersection2: "up"
+  };
+
+  ui.style.display = "none";
+}
+
+/* ================= SPAWN ================= */
 
 function spawnCart() {
+
   if (spawnIndex >= DESTINATIONS.length) return;
 
   const dest = DESTINATIONS[spawnIndex];
@@ -167,22 +183,19 @@ function checkBuildings(cart) {
     if (dist < 20) {
 
       if (key === cart.destination) {
+
         delivered++;
-        removeCart(cart);
+        activeCarts = activeCarts.filter(c => c !== cart);
+
         if (delivered === DESTINATIONS.length) {
-          gameState = "win";
-          console.log("YOU WIN");
+          winGame();
         }
+
       } else {
-        gameState = "lose";
-        console.log("YOU LOSE");
+        loseGame();
       }
     }
   }
-}
-
-function removeCart(cart) {
-  activeCarts = activeCarts.filter(c => c !== cart);
 }
 
 /* ================= DRAW ================= */
@@ -203,7 +216,21 @@ function draw() {
   drawIntersectionArrows();
 
   for (let cart of activeCarts) {
-    ctx.drawImage(cart.img, cart.x - 60, cart.y - 60, 120, 120);
+
+    let rotation = 0;
+
+    if (cart.vy < 0) rotation = -Math.PI / 2;
+    if (cart.vy > 0) rotation = Math.PI / 2;
+    if (cart.vx > 0) rotation = 0;
+    if (cart.vx < 0) rotation = Math.PI;
+
+    ctx.save();
+    ctx.translate(cart.x, cart.y);
+    ctx.rotate(rotation);
+
+    ctx.drawImage(cart.img, -60, -60, 120, 120);
+
+    ctx.restore();
   }
 }
 
@@ -228,6 +255,20 @@ function drawIntersectionArrows() {
 
     ctx.restore();
   }
+}
+
+/* ================= WIN / LOSE ================= */
+
+function winGame() {
+  gameState = "win";
+  resultText.innerText = "YOU WIN";
+  ui.style.display = "block";
+}
+
+function loseGame() {
+  gameState = "lose";
+  resultText.innerText = "YOU LOSE";
+  ui.style.display = "block";
 }
 
 /* ================= INPUT ================= */
@@ -270,4 +311,13 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-mapImg.onload = loop;
+mapImg.onload = () => {
+  resetGame();
+  loop();
+};
+
+/* ================= RESTART ================= */
+
+function restartGame() {
+  resetGame();
+}
