@@ -11,7 +11,7 @@ const WORLD_HEIGHT = 900;
 
 /* ================= CART SIZE CONTROL ================= */
 
-const CART_SIZE = 500; // change this value to resize all carts
+const CART_SIZE = 200; // change this value to resize all carts
 
 /* ================= CANVAS ================= */
 
