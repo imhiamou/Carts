@@ -219,11 +219,10 @@ function draw() {
 
     let rotation = 0;
 
-    // sprite default faces LEFT
-    if (cart.vx < 0) rotation = 0;                 // left
-    else if (cart.vx > 0) rotation = Math.PI;      // right
-    else if (cart.vy < 0) rotation = -Math.PI / 2; // up
-    else if (cart.vy > 0) rotation = Math.PI / 2;  // down
+    if (cart.vy > 0) rotation = 0;                   // down
+    else if (cart.vy < 0) rotation = Math.PI;        // up
+    else if (cart.vx < 0) rotation = Math.PI / 2;    // left
+    else if (cart.vx > 0) rotation = -Math.PI / 2;   // right
 
     ctx.save();
     ctx.translate(cart.x, cart.y);
@@ -244,9 +243,9 @@ function drawIntersectionArrows() {
 
     let rotation = 0;
 
-    if (state === "up") rotation = -Math.PI / 2;
-    if (state === "left") rotation = Math.PI;
-    if (state === "right") rotation = 0;
+    if (state === "up") rotation = Math.PI;
+    if (state === "left") rotation = Math.PI / 2;
+    if (state === "right") rotation = -Math.PI / 2;
 
     ctx.save();
     ctx.translate(node.x, node.y);
