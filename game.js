@@ -126,28 +126,18 @@ function update() {
     }
   }
 
-  /* ----- RIGHT BOUNDARY (LOSE) ----- */
-  const WIN_LINE_Y = 100;    // where win happens
-const LOSE_LINE_X = 1150;  // where lose happens
+// ----- LOSE (right side) -----
+if (cart.x >= 800) {
+  endGame("lose");
+  return;
+}
 
-  if (
-    cart.vx > 0 &&
-    nextX + CART_SIZE / 2 >= LOSE_LINE_X
-  ) {
-    cart.x = WORLD_WIDTH - CART_SIZE / 2;
-    endGame("lose");
-    return;
-  }
+// ----- WIN (top side) -----
+if (cart.y <= 200) {
+  endGame("win");
+  return;
+}
 
-  /* ----- TOP BOUNDARY (WIN) ----- */
-  if (
-    cart.vy < 0 &&
-    nextY - CART_SIZE / 2 <= WIN_LINE_Y
-  ) {
-    cart.y = CART_SIZE / 2;
-    endGame("win");
-    return;
-  }
 
   /* ----- COMMIT MOVEMENT ----- */
   cart.x = nextX;
