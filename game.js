@@ -50,7 +50,7 @@ const NODES = {
   intersection2: { x: 600, y: 330 },
 
   sawmill: { x: 598, y: 218 },
-  mine: { x: 351, y: 309 },
+  mine: { x: 351, y: 320 },
   barn: { x: 783, y: 320 },
   tavern: { x: 384, y: 571 },
   windmill: { x: 833, y: 564 }
