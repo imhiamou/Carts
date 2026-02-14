@@ -9,6 +9,10 @@ const resultText = document.getElementById("result");
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
+/* ================= CART SIZE CONTROL ================= */
+
+const CART_SIZE = 120; // change this value to resize all carts
+
 /* ================= CANVAS ================= */
 
 function resize() {
@@ -222,16 +226,22 @@ function draw() {
 
     let rotation = 0;
 
-    if (cart.vy > 0) rotation = 0;                   // down
-    else if (cart.vy < 0) rotation = Math.PI;        // up
-    else if (cart.vx < 0) rotation = Math.PI / 2;    // left
-    else if (cart.vx > 0) rotation = -Math.PI / 2;   // right
+    if (cart.vy > 0) rotation = 0;
+    else if (cart.vy < 0) rotation = Math.PI;
+    else if (cart.vx < 0) rotation = Math.PI / 2;
+    else if (cart.vx > 0) rotation = -Math.PI / 2;
 
     ctx.save();
     ctx.translate(cart.x, cart.y);
     ctx.rotate(rotation);
 
-    ctx.drawImage(cart.img, -60, -60, 120, 120);
+    ctx.drawImage(
+      cart.img,
+      -CART_SIZE / 2,
+      -CART_SIZE / 2,
+      CART_SIZE,
+      CART_SIZE
+    );
 
     ctx.restore();
   }
