@@ -229,3 +229,60 @@ function gameLoop() {
 mapImg.onload = () => {
   gameLoop();
 };
+/* ================= TEST OVERRIDE (APPEND ONLY) ================= */
+
+(function () {
+
+  // Force test mode
+  gameState = "test";
+
+  // Hide UI if visible
+  const ui = document.getElementById("ui");
+  if (ui) ui.style.display = "none";
+
+  // Override to map02
+  mapImg.src = "map02.png";
+
+  // Disable gameplay logic
+  update = function () {};
+  drawCart = function () {};
+  drawIntersectionArrow = function () {};
+  endGame = function () {};
+  restartGame = function () {};
+
+  // Static draw instead of game loop behavior
+  function drawTestMap() {
+    const scale = getScale();
+
+    ctx.setTransform(
+      scale, 0, 0, scale,
+      (canvas.width - WORLD_WIDTH * scale) / 2,
+      (canvas.height - WORLD_HEIGHT * scale) / 2
+    );
+
+    ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  }
+
+  mapImg.onload = drawTestMap;
+
+  // Coordinate logger
+  canvas.addEventListener("click", function (e) {
+
+    const scale = getScale();
+    const rect = canvas.getBoundingClientRect();
+
+    const offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
+    const offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
+
+    const mouseX = (e.clientX - rect.left - offsetX) / scale;
+    const mouseY = (e.clientY - rect.top - offsetY) / scale;
+
+    console.clear();
+    console.log("X:", Math.round(mouseX));
+    console.log("Y:", Math.round(mouseY));
+
+  });
+
+})();
+
