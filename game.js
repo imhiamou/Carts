@@ -229,29 +229,29 @@ function gameLoop() {
 mapImg.onload = () => {
   gameLoop();
 };
-/* ================= TEST OVERRIDE (APPEND ONLY) ================= */
+/* ================= TEST OVERRIDE (FIXED) ================= */
 
 (function () {
 
-  // Force test mode
-  gameState = "test";
+  // Keep gameState as playing so click system works
+  gameState = "playing";
 
-  // Hide UI if visible
+  // Hide UI
   const ui = document.getElementById("ui");
   if (ui) ui.style.display = "none";
 
-  // Override to map02
+  // Force map02
   mapImg.src = "map02.png";
 
-  // Disable gameplay logic
+  // Disable gameplay logic only
   update = function () {};
   drawCart = function () {};
   drawIntersectionArrow = function () {};
   endGame = function () {};
   restartGame = function () {};
 
-  // Static draw instead of game loop behavior
-  function drawTestMap() {
+  // Ensure map redraws
+  mapImg.onload = function () {
     const scale = getScale();
 
     ctx.setTransform(
@@ -262,11 +262,9 @@ mapImg.onload = () => {
 
     ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  }
+  };
 
-  mapImg.onload = drawTestMap;
-
-  // Coordinate logger
+  // Capture clicks at highest priority (before old handler)
   canvas.addEventListener("click", function (e) {
 
     const scale = getScale();
@@ -279,10 +277,8 @@ mapImg.onload = () => {
     const mouseY = (e.clientY - rect.top - offsetY) / scale;
 
     console.clear();
-    console.log("X:", Math.round(mouseX));
-    console.log("Y:", Math.round(mouseY));
+    console.log("X:", Math.round(mouseX), "Y:", Math.round(mouseY));
 
-  });
+  }, true); // capture phase
 
 })();
-
