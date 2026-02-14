@@ -1,21 +1,19 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+/* ================= WORLD ================= */
+
+const WORLD_WIDTH = 1200;
+const WORLD_HEIGHT = 900;
+
 /* ================= CANVAS ================= */
 
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  draw();
 }
-
 window.addEventListener("resize", resize);
 resize();
-
-/* ================= WORLD ================= */
-
-const WORLD_WIDTH = 1200;
-const WORLD_HEIGHT = 900;
 
 /* ================= LOAD MAP ================= */
 
@@ -31,9 +29,10 @@ function getScale() {
   );
 }
 
-/* ================= DRAW ================= */
+/* ================= LOOP ================= */
 
-function draw() {
+function loop() {
+
   const scale = getScale();
 
   ctx.setTransform(
@@ -43,12 +42,17 @@ function draw() {
   );
 
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+  if (mapImg.complete) {
+    ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  }
+
+  requestAnimationFrame(loop);
 }
 
-mapImg.onload = draw;
+mapImg.onload = loop;
 
-/* ================= CLICK COORDINATES ================= */
+/* ================= CLICK ================= */
 
 canvas.addEventListener("click", function (e) {
 
@@ -61,7 +65,6 @@ canvas.addEventListener("click", function (e) {
   const mouseX = (e.clientX - rect.left - offsetX) / scale;
   const mouseY = (e.clientY - rect.top - offsetY) / scale;
 
-  console.clear();
   console.log("X:", Math.round(mouseX), "Y:", Math.round(mouseY));
 
 });
