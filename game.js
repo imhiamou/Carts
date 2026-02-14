@@ -4,38 +4,43 @@ const ctx = canvas.getContext("2d");
 const ui = document.getElementById("ui");
 const resultText = document.getElementById("result");
 
-/* ================= DEVICE DETECTION ================= */
-
-const isPhone = window.matchMedia("(max-width: 768px)").matches;
-
 /* ================= WORLD ================= */
 
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-/* ================= SIZE CONTROL ================= */
+/* ================= SIZE ================= */
 
-const CART_SIZE = isPhone ? 90 : 120;
-const ARROW_SIZE = isPhone ? 70 : 80;
-const TAP_RADIUS = isPhone ? 70 : 40;
+const CART_SIZE = 110;
+const ARROW_SIZE = 80;
+const TAP_RADIUS = 60;
+
+/* ================= VIEW STATE ================= */
+
+let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
 
 /* ================= CANVAS ================= */
 
 function resize() {
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-}
-window.addEventListener("resize", resize);
-resize();
 
-canvas.style.touchAction = "none"; // prevent scrolling
-
-function getScale() {
-  return Math.min(
+  scale = Math.min(
     canvas.width / WORLD_WIDTH,
     canvas.height / WORLD_HEIGHT
   );
+
+  offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
+  offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
 }
+
+window.addEventListener("resize", resize);
+resize();
+
+canvas.style.touchAction = "none";
 
 /* ================= LOAD ================= */
 
@@ -94,6 +99,7 @@ const SPAWN_DELAY = 120;
 /* ================= RESET ================= */
 
 function resetGame() {
+
   gameState = "playing";
   delivered = 0;
   spawnIndex = 0;
@@ -111,6 +117,7 @@ function resetGame() {
 /* ================= SPAWN ================= */
 
 function spawnCart() {
+
   if (spawnIndex >= DESTINATIONS.length) return;
 
   const dest = DESTINATIONS[spawnIndex];
@@ -143,6 +150,7 @@ function update() {
   }
 
   for (let cart of activeCarts) {
+
     cart.x += cart.vx;
     cart.y += cart.vy;
 
@@ -193,10 +201,12 @@ function checkBuildings(cart) {
     if (dist < 20) {
 
       if (key === cart.destination) {
+
         delivered++;
         activeCarts = activeCarts.filter(c => c !== cart);
 
         if (delivered === DESTINATIONS.length) winGame();
+
       } else {
         loseGame();
       }
@@ -208,13 +218,7 @@ function checkBuildings(cart) {
 
 function draw() {
 
-  const scale = getScale();
-
-  ctx.setTransform(
-    scale, 0, 0, scale,
-    (canvas.width - WORLD_WIDTH * scale) / 2,
-    (canvas.height - WORLD_HEIGHT * scale) / 2
-  );
+  ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
 
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -254,8 +258,6 @@ function drawIntersectionArrows() {
     const state = intersections[name];
 
     let img = arrowUpImg;
-
-    if (state === "up") img = arrowUpImg;
     if (state === "left") img = arrowLeftImg;
     if (state === "right") img = arrowRightImg;
 
@@ -269,25 +271,19 @@ function drawIntersectionArrows() {
   }
 }
 
-/* ================= INPUT (MOUSE + TOUCH) ================= */
+/* ================= INPUT ================= */
 
 function handleInput(clientX, clientY) {
 
   if (gameState !== "playing") return;
 
-  const scale = getScale();
-  const rect = canvas.getBoundingClientRect();
-
-  const offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
-  const offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
-
-  const mouseX = (clientX - rect.left - offsetX) / scale;
-  const mouseY = (clientY - rect.top - offsetY) / scale;
+  const worldX = (clientX - offsetX) / scale;
+  const worldY = (clientY - offsetY) / scale;
 
   for (let name of ["intersection1", "intersection2"]) {
 
     const node = NODES[name];
-    const dist = Math.hypot(mouseX - node.x, mouseY - node.y);
+    const dist = Math.hypot(worldX - node.x, worldY - node.y);
 
     if (dist < TAP_RADIUS) {
 
@@ -307,8 +303,8 @@ canvas.addEventListener("click", e => {
 
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
-  const touch = e.touches[0];
-  handleInput(touch.clientX, touch.clientY);
+  const t = e.touches[0];
+  handleInput(t.clientX, t.clientY);
 });
 
 /* ================= WIN / LOSE ================= */
