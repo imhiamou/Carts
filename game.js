@@ -53,7 +53,7 @@ const NODES = {
   intersection2: { x: 600, y: 330 },
 
   sawmill: { x: 598, y: 218 },
-  mine: { x: 351, y: 320 }, // FIXED Y
+  mine: { x: 351, y: 320 }, // corrected
   barn: { x: 783, y: 320 },
   tavern: { x: 384, y: 571 },
   windmill: { x: 833, y: 564 }
@@ -223,6 +223,9 @@ function draw() {
     if (cart.vy > 0) rotation = Math.PI / 2;
     if (cart.vx > 0) rotation = 0;
     if (cart.vx < 0) rotation = Math.PI;
+
+    // sprite faces LEFT by default → compensate
+    rotation += Math.PI;
 
     ctx.save();
     ctx.translate(cart.x, cart.y);
