@@ -229,4 +229,66 @@ function gameLoop() {
 mapImg.onload = () => {
   gameLoop();
 };
+/* ================= HARD TEST OVERRIDE ================= */
+
+(function () {
+
+  // Clone canvas to remove ALL previous listeners
+  const oldCanvas = canvas;
+  const newCanvas = oldCanvas.cloneNode(true);
+  oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+
+  const ctx = newCanvas.getContext("2d");
+
+  // Load map02
+  const testMap = new Image();
+  testMap.src = "map02.png";
+
+  function resize() {
+    newCanvas.width = window.innerWidth;
+    newCanvas.height = window.innerHeight;
+  }
+
+  resize();
+  window.addEventListener("resize", resize);
+
+  function getScale() {
+    return Math.min(
+      newCanvas.width / WORLD_WIDTH,
+      newCanvas.height / WORLD_HEIGHT
+    );
+  }
+
+  function draw() {
+    const scale = getScale();
+
+    ctx.setTransform(
+      scale, 0, 0, scale,
+      (newCanvas.width - WORLD_WIDTH * scale) / 2,
+      (newCanvas.height - WORLD_HEIGHT * scale) / 2
+    );
+
+    ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    ctx.drawImage(testMap, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  }
+
+  testMap.onload = draw;
+
+  newCanvas.addEventListener("click", function (e) {
+
+    const scale = getScale();
+    const rect = newCanvas.getBoundingClientRect();
+
+    const offsetX = (newCanvas.width - WORLD_WIDTH * scale) / 2;
+    const offsetY = (newCanvas.height - WORLD_HEIGHT * scale) / 2;
+
+    const mouseX = (e.clientX - rect.left - offsetX) / scale;
+    const mouseY = (e.clientY - rect.top - offsetY) / scale;
+
+    console.clear();
+    console.log("X:", Math.round(mouseX), "Y:", Math.round(mouseY));
+
+  });
+
+})();
 
