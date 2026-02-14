@@ -34,7 +34,10 @@ function load(src) {
 }
 
 const mapImg = load("map02.png");
-const arrowImg = load("arrow.png");
+
+const arrowUpImg = load("arrow_up.png");
+const arrowLeftImg = load("arrow_left.png");
+const arrowRightImg = load("arrow_right.png");
 
 const CART_IMAGES = {
   sawmill: load("sawmill_cart.png"),
@@ -241,19 +244,13 @@ function drawIntersectionArrows() {
     const node = NODES[name];
     const state = intersections[name];
 
-    let rotation = 0;
+    let img = arrowUpImg;
 
-    if (state === "up") rotation = Math.PI;
-    if (state === "left") rotation = Math.PI / 2;
-    if (state === "right") rotation = -Math.PI / 2;
+    if (state === "up") img = arrowUpImg;
+    if (state === "left") img = arrowLeftImg;
+    if (state === "right") img = arrowRightImg;
 
-    ctx.save();
-    ctx.translate(node.x, node.y);
-    ctx.rotate(rotation);
-
-    ctx.drawImage(arrowImg, -40, -40, 80, 80);
-
-    ctx.restore();
+    ctx.drawImage(img, node.x - 40, node.y - 40, 80, 80);
   }
 }
 
