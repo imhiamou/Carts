@@ -127,9 +127,12 @@ function update() {
   }
 
   /* ----- RIGHT BOUNDARY (LOSE) ----- */
+  const WIN_LINE_Y = 100;    // where win happens
+const LOSE_LINE_X = 1150;  // where lose happens
+
   if (
     cart.vx > 0 &&
-    nextX + CART_SIZE / 2 >= WORLD_WIDTH
+    nextX + CART_SIZE / 2 >= LOSE_LINE_X
   ) {
     cart.x = WORLD_WIDTH - CART_SIZE / 2;
     endGame("lose");
@@ -139,7 +142,7 @@ function update() {
   /* ----- TOP BOUNDARY (WIN) ----- */
   if (
     cart.vy < 0 &&
-    nextY - CART_SIZE / 2 <= 0
+    nextY - CART_SIZE / 2 <= WIN_LINE_Y
   ) {
     cart.y = CART_SIZE / 2;
     endGame("win");
