@@ -13,7 +13,7 @@ const WORLD_HEIGHT = 900;
 
 const CART_SIZE = 170;
 const ARROW_SIZE = 80;
-const TAP_RADIUS = 60;
+const TAP_RADIUS = 80;
 
 /* ================= VIEW ================= */
 
@@ -294,8 +294,11 @@ function handleInput(clientX, clientY) {
 
   const rect = canvas.getBoundingClientRect();
 
-  const worldX = (clientX - rect.left - offsetX) / scale;
-  const worldY = (clientY - rect.top - offsetY) / scale;
+  const canvasX = clientX - rect.left;
+  const canvasY = clientY - rect.top;
+
+  const worldX = (canvasX - offsetX) / scale;
+  const worldY = (canvasY - offsetY) / scale;
 
   for (let name of ["intersection1", "intersection2"]) {
 
@@ -320,8 +323,8 @@ canvas.addEventListener("click", e => {
 
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
-  const t = e.touches[0];
-  handleInput(t.clientX, t.clientY);
+  const touch = e.changedTouches[0];
+  handleInput(touch.clientX, touch.clientY);
 });
 
 /* ================= WIN / LOSE ================= */
