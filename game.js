@@ -8,6 +8,7 @@ const resultText = document.getElementById("result");
 
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
+const ZOOM = 0.85;
 
 /* ================= SIZE ================= */
 
@@ -32,7 +33,7 @@ function resize() {
   const heightRatio = canvas.height / WORLD_HEIGHT;
 
   // COVER MODE (fills height on phone)
-  scale = Math.max(widthRatio, heightRatio);
+  scale = Math.max(widthRatio, heightRatio)*ZOOM;
 
   offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
   offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
