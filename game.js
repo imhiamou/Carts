@@ -12,7 +12,7 @@ const WORLD_HEIGHT = 900;
 
 /* ================= SIZE ================= */
 
-const CART_SIZE = 110;
+const CART_SIZE = 170;
 const ARROW_SIZE = 80;
 const TAP_RADIUS = 60;
 
@@ -34,10 +34,10 @@ function resize() {
   const heightRatio = canvas.height / WORLD_HEIGHT;
 
   // COVER MODE (fills height on phone)
-  scale = Math.max(widthRatio, heightRatio)*ZOOM;
+  scale = Math.max(widthRatio, heightRatio);
 
   offsetX = ((canvas.width - WORLD_WIDTH * scale) / 2);
-  offsetY = ((canvas.height - WORLD_HEIGHT * scale) / 2)+Y_SHIFT;
+  offsetY = ((canvas.height - WORLD_HEIGHT * scale) / 2);
 }
 
 window.addEventListener("resize", resize);
