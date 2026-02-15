@@ -15,7 +15,7 @@ const CART_SIZE = 110;
 const ARROW_SIZE = 80;
 const TAP_RADIUS = 60;
 
-/* ================= VIEW STATE ================= */
+/* ================= VIEW ================= */
 
 let scale = 1;
 let offsetX = 0;
@@ -28,10 +28,11 @@ function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
-  scale = Math.min(
-    canvas.width / WORLD_WIDTH,
-    canvas.height / WORLD_HEIGHT
-  );
+  const widthRatio = canvas.width / WORLD_WIDTH;
+  const heightRatio = canvas.height / WORLD_HEIGHT;
+
+  // COVER MODE (fills height on phone)
+  scale = Math.max(widthRatio, heightRatio);
 
   offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
   offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
