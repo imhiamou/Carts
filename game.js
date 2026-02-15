@@ -21,7 +21,7 @@ const TAP_RADIUS = 60;
 let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
-const ZOOM = 0.65;
+const ZOOM = 0.75;
 const Y_SHIFT = -120;
 /* ================= CANVAS ================= */
 
