@@ -9,7 +9,6 @@ const resultText = document.getElementById("result");
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
-
 /* ================= SIZE ================= */
 
 const CART_SIZE = 170;
@@ -21,8 +20,7 @@ const TAP_RADIUS = 60;
 let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
-const ZOOM = 0.75;
-const Y_SHIFT = -120;
+
 /* ================= CANVAS ================= */
 
 function resize() {
@@ -33,11 +31,25 @@ function resize() {
   const widthRatio = canvas.width / WORLD_WIDTH;
   const heightRatio = canvas.height / WORLD_HEIGHT;
 
-  // COVER MODE (fills height on phone)
-  scale = Math.max(widthRatio, heightRatio)*ZOOM;
+  const isPhone = window.innerWidth <= 768;
 
-  offsetX = ((canvas.width - WORLD_WIDTH * scale) / 2);
-  offsetY = ((canvas.height - WORLD_HEIGHT * scale) / 2)+Y_SHIFT;
+  if (isPhone) {
+
+    const PHONE_ZOOM = 0.75;
+    const PHONE_Y_SHIFT = -120;
+
+    scale = Math.max(widthRatio, heightRatio) * PHONE_ZOOM;
+
+    offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
+    offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2 + PHONE_Y_SHIFT;
+
+  } else {
+
+    scale = Math.min(widthRatio, heightRatio);
+
+    offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
+    offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
+  }
 }
 
 window.addEventListener("resize", resize);
@@ -280,8 +292,10 @@ function handleInput(clientX, clientY) {
 
   if (gameState !== "playing") return;
 
-  const worldX = (clientX - offsetX) / scale;
-  const worldY = (clientY - offsetY) / scale;
+  const rect = canvas.getBoundingClientRect();
+
+  const worldX = (clientX - rect.left - offsetX) / scale;
+  const worldY = (clientY - rect.top - offsetY) / scale;
 
   for (let name of ["intersection1", "intersection2"]) {
 
