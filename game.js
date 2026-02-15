@@ -21,8 +21,8 @@ const TAP_RADIUS = 60;
 let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
-const ZOOM = 0.65;
-const Y_SHIFT = -80;
+const ZOOM = 0.45;
+const Y_SHIFT = -120;
 /* ================= CANVAS ================= */
 
 function resize() {
@@ -34,10 +34,10 @@ function resize() {
   const heightRatio = canvas.height / WORLD_HEIGHT;
 
   // COVER MODE (fills height on phone)
-  scale = Math.max(widthRatio, heightRatio);
+  scale = Math.max(widthRatio, heightRatio)*ZOOM;
 
   offsetX = ((canvas.width - WORLD_WIDTH * scale) / 2);
-  offsetY = ((canvas.height - WORLD_HEIGHT * scale) / 2);
+  offsetY = ((canvas.height - WORLD_HEIGHT * scale) / 2)+Y_SHIFT;
 }
 
 window.addEventListener("resize", resize);
