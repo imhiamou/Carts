@@ -21,6 +21,29 @@ let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
 
+/* ================= AUDIO ================= */
+
+const sounds = {
+  spawn: new Audio("spawn.mp3"),
+  turn: new Audio("turn.mp3"),
+  win: new Audio("win.mp3"),
+  lose: new Audio("lose.mp3")
+};
+
+let audioUnlocked = false;
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  Object.values(sounds).forEach(s => {
+    s.volume = 0.6;
+    s.play().then(() => {
+      s.pause();
+      s.currentTime = 0;
+    }).catch(() => {});
+  });
+  audioUnlocked = true;
+}
+
 /* ================= CANVAS ================= */
 
 function resize() {
@@ -146,8 +169,12 @@ function spawnCart() {
     destination: dest,
     img: CART_IMAGES[dest],
     turned1: false,
-    turned2: false
+    turned2: false,
+    animTime: 0
   });
+
+  sounds.spawn.currentTime = 0;
+  sounds.spawn.play();
 
   spawnIndex++;
 }
@@ -168,6 +195,7 @@ function update() {
 
     cart.x += cart.vx;
     cart.y += cart.vy;
+    cart.animTime += 0.15;
 
     handleIntersection(cart, "intersection1");
     handleIntersection(cart, "intersection2");
@@ -201,6 +229,9 @@ function handleIntersection(cart, name) {
       cart.vy = 0;
     }
 
+    sounds.turn.currentTime = 0;
+    sounds.turn.play();
+
     if (name === "intersection1") cart.turned1 = true;
     if (name === "intersection2") cart.turned2 = true;
   }
@@ -220,9 +251,13 @@ function checkBuildings(cart) {
         delivered++;
         activeCarts = activeCarts.filter(c => c !== cart);
 
-        if (delivered === DESTINATIONS.length) winGame();
+        if (delivered === DESTINATIONS.length) {
+          sounds.win.play();
+          winGame();
+        }
 
       } else {
+        sounds.lose.play();
         loseGame();
       }
     }
@@ -249,8 +284,10 @@ function draw() {
     else if (cart.vx < 0) rotation = Math.PI / 2;
     else if (cart.vx > 0) rotation = -Math.PI / 2;
 
+    const bob = Math.sin(cart.animTime) * 4;
+
     ctx.save();
-    ctx.translate(cart.x, cart.y);
+    ctx.translate(cart.x, cart.y + bob);
     ctx.rotate(rotation);
 
     ctx.drawImage(
@@ -289,6 +326,8 @@ function drawIntersectionArrows() {
 /* ================= INPUT ================= */
 
 function handleInput(clientX, clientY) {
+
+  unlockAudio();
 
   if (gameState !== "playing") return;
 
