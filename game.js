@@ -17,9 +17,9 @@ const TAP_RADIUS = 80;
 
 /* ================= GAME TUNING ================= */
 
-const BASE_SPEED = 2.0;          // slower starting speed
-const SPEED_INCREMENT = 0.15;    // speed increase per 1000 score
-const SPAWN_DELAY = 200;         // longer delay
+const BASE_SPEED = 2.0;
+const SPEED_INCREMENT = 0.15;
+const SPAWN_DELAY = 200;
 
 /* ================= VIEW ================= */
 
@@ -27,10 +27,14 @@ let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
 
-/* ================= GAME VALUES ================= */
+/* ================= GAME STATE ================= */
 
-let score = 0;
-let lives = 3;
+let gameState;
+let score;
+let lives;
+let spawnTimer;
+let activeCarts;
+let intersections;
 
 /* ================= CANVAS ================= */
 
@@ -91,13 +95,6 @@ const CART_IMAGES = {
 };
 
 const DESTINATIONS = Object.keys(CART_IMAGES);
-
-/* ================= STATE ================= */
-
-let gameState;
-let spawnTimer;
-let activeCarts;
-let intersections;
 
 /* ================= RESET ================= */
 
@@ -290,13 +287,28 @@ function drawIntersectionArrows() {
 
 function drawHUD() {
 
-  ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+  const isPhone = window.innerWidth <= 768;
 
-  ctx.fillStyle = "white";
-  ctx.font = "28px Arial";
+  if (isPhone) {
 
-  ctx.fillText("Score: " + score, 20, 40);
-  ctx.fillText("Lives: " + lives, 20, 75);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    ctx.fillStyle = "white";
+    ctx.font = "24px Arial";
+
+    ctx.fillText("Score: " + score, 20, 40);
+    ctx.fillText("Lives: " + lives, 20, 70);
+
+  } else {
+
+    ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+
+    ctx.fillStyle = "white";
+    ctx.font = "28px Arial";
+
+    ctx.fillText("Score: " + score, 20, 40);
+    ctx.fillText("Lives: " + lives, 20, 75);
+  }
 }
 
 /* ================= INPUT ================= */
