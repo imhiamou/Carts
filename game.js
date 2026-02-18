@@ -15,6 +15,12 @@ const CART_SIZE = 170;
 const ARROW_SIZE = 80;
 const TAP_RADIUS = 80;
 
+/* ================= GAME TUNING ================= */
+
+const BASE_SPEED = 2.0;          // slower starting speed
+const SPEED_INCREMENT = 0.15;    // speed increase per 1000 score
+const SPAWN_DELAY = 200;         // longer delay
+
 /* ================= VIEW ================= */
 
 let scale = 1;
@@ -93,8 +99,6 @@ let spawnTimer;
 let activeCarts;
 let intersections;
 
-const SPAWN_DELAY = 120;
-
 /* ================= RESET ================= */
 
 function resetGame() {
@@ -120,12 +124,15 @@ function spawnCart() {
   const randomDest =
     DESTINATIONS[Math.floor(Math.random() * DESTINATIONS.length)];
 
+  const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
+  const speed = BASE_SPEED + speedBoost;
+
   activeCarts.push({
     x: 599,
     y: 846,
     vx: 0,
-    vy: -2.5,
-    speed: 2.5,
+    vy: -speed,
+    speed: speed,
     destination: randomDest,
     img: CART_IMAGES[randomDest],
     turned1: false,
@@ -283,11 +290,13 @@ function drawIntersectionArrows() {
 
 function drawHUD() {
 
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+
   ctx.fillStyle = "white";
-  ctx.font = "24px Arial";
+  ctx.font = "28px Arial";
+
   ctx.fillText("Score: " + score, 20, 40);
-  ctx.fillText("Lives: " + lives, 20, 70);
+  ctx.fillText("Lives: " + lives, 20, 75);
 }
 
 /* ================= INPUT ================= */
