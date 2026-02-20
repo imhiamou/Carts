@@ -30,7 +30,7 @@ let offsetY = 0;
 
 /* ================= DEBUG MODE ================= */
 
-let debugMode = true;
+let debugMode = false;
 let debugPoints = [];
 
 /* ================= GAME STATE ================= */
