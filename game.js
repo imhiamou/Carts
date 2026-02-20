@@ -51,8 +51,6 @@ const LEVEL = {
 
 };
 
-/* ================= INTERSECTION RULES ================= */
-
 let intersections;
 
 const INTERSECTION_RULES = {
@@ -193,8 +191,8 @@ function spawnCart() {
   activeCarts.push({
     x: LEVEL.spawn.x,
     y: LEVEL.spawn.y,
-    vx: speed,   // road starts moving right from spawn
-    vy: 0,
+    vx: 0,
+    vy: -speed,
     speed: speed,
     destination: randomDest,
     img: CART_IMAGES[randomDest],
@@ -242,22 +240,10 @@ function handleIntersection(cart, name, x, y) {
 
     const dir = intersections[name];
 
-    if (dir === "up") {
-      cart.vx = 0;
-      cart.vy = -cart.speed;
-    }
-    if (dir === "left") {
-      cart.vx = -cart.speed;
-      cart.vy = 0;
-    }
-    if (dir === "right") {
-      cart.vx = cart.speed;
-      cart.vy = 0;
-    }
-    if (dir === "down") {
-      cart.vx = 0;
-      cart.vy = cart.speed;
-    }
+    if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
+    if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
+    if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
+    if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
 
     cart[name] = true;
   }
@@ -277,11 +263,8 @@ function checkBuildings(cart) {
       if (key === cart.destination) {
 
         score += 100;
-
-        if (sounds[key]) {
-          sounds[key].currentTime = 0;
-          sounds[key].play();
-        }
+        sounds[key].currentTime = 0;
+        sounds[key].play();
 
       } else {
 
@@ -304,6 +287,11 @@ function draw() {
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
   drawIntersectionArrows();
+  drawCarts();
+  drawHUD();
+}
+
+function drawCarts() {
 
   for (let cart of activeCarts) {
 
@@ -319,19 +307,9 @@ function draw() {
     ctx.save();
     ctx.translate(cart.x, cart.y + bob);
     ctx.rotate(rotation);
-
-    ctx.drawImage(
-      cart.img,
-      -CART_SIZE / 2,
-      -CART_SIZE / 2,
-      CART_SIZE,
-      CART_SIZE
-    );
-
+    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
     ctx.restore();
   }
-
-  drawHUD();
 }
 
 function drawIntersectionArrows() {
@@ -354,13 +332,7 @@ function drawIntersectionArrows() {
     ctx.save();
     ctx.translate(node.x, node.y);
     ctx.rotate(rotation);
-    ctx.drawImage(
-      img,
-      -ARROW_SIZE / 2,
-      -ARROW_SIZE / 2,
-      ARROW_SIZE,
-      ARROW_SIZE
-    );
+    ctx.drawImage(img, -ARROW_SIZE/2, -ARROW_SIZE/2, ARROW_SIZE, ARROW_SIZE);
     ctx.restore();
   }
 }
@@ -370,7 +342,6 @@ function drawIntersectionArrows() {
 canvas.addEventListener("click", e => {
 
   unlockAudio();
-
   if (gameState !== "playing") return;
 
   const rect = canvas.getBoundingClientRect();
@@ -386,25 +357,21 @@ canvas.addEventListener("click", e => {
 
       const allowed = INTERSECTION_RULES[name];
       const current = intersections[name];
-
       const index = allowed.indexOf(current);
-      const nextIndex = (index + 1) % allowed.length;
-
-      intersections[name] = allowed[nextIndex];
+      intersections[name] = allowed[(index + 1) % allowed.length];
     }
   }
 });
 
-/* ================= HUD ================= */
+/* ================= HUD (DRAWN IN MAP SPACE) ================= */
 
 function drawHUD() {
 
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "white";
-  ctx.font = "24px Arial";
+  ctx.font = "28px Arial";
 
-  ctx.fillText("Score: " + score, 20, 40);
-  ctx.fillText("Lives: " + lives, 20, 70);
+  ctx.fillText("Score: " + score, 40, 50);
+  ctx.fillText("Lives: " + lives, 40, 85);
 }
 
 /* ================= LOOP ================= */
