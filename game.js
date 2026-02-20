@@ -23,7 +23,8 @@ const SPAWN_DELAY = 200;
 
 /* ================= VIEW ================= */
 
-let scale = 1;
+let scaleX = 1;
+let scaleY = 1;
 let offsetX = 0;
 let offsetY = 0;
 
@@ -48,9 +49,7 @@ const sounds = {
   windmill: new Audio("windmill.mp3")
 };
 
-Object.values(sounds).forEach(s => {
-  s.volume = 0.6;
-});
+Object.values(sounds).forEach(s => s.volume = 0.6);
 
 let audioUnlocked = false;
 
@@ -80,19 +79,25 @@ function resize() {
   if (isPhone) {
 
     const PHONE_ZOOM = 0.75;
+
+    // 🔥 CHANGE THIS TO STRETCH PHONE HEIGHT
+    const PHONE_HEIGHT_STRETCH = 1.15;
+
     const PHONE_Y_SHIFT = -120;
 
-    scale = Math.max(widthRatio, heightRatio) * PHONE_ZOOM;
+    scaleX = Math.max(widthRatio, heightRatio) * PHONE_ZOOM;
+    scaleY = scaleX * PHONE_HEIGHT_STRETCH;
 
-    offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
-    offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2 + PHONE_Y_SHIFT;
+    offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
+    offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2 + PHONE_Y_SHIFT;
 
   } else {
 
-    scale = Math.min(widthRatio, heightRatio);
+    scaleX = Math.min(widthRatio, heightRatio);
+    scaleY = scaleX;
 
-    offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
-    offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
+    offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
+    offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2;
   }
 }
 
@@ -267,7 +272,7 @@ function checkBuildings(cart) {
 
 function draw() {
 
-  ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+  ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
 
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -336,7 +341,6 @@ function drawHUD() {
   if (isPhone) {
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-
     ctx.fillStyle = "white";
     ctx.font = "24px Arial";
 
@@ -345,8 +349,7 @@ function drawHUD() {
 
   } else {
 
-    ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
-
+    ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
     ctx.fillStyle = "white";
     ctx.font = "28px Arial";
 
@@ -368,8 +371,8 @@ function handleInput(clientX, clientY) {
   const canvasX = clientX - rect.left;
   const canvasY = clientY - rect.top;
 
-  const worldX = (canvasX - offsetX) / scale;
-  const worldY = (canvasY - offsetY) / scale;
+  const worldX = (canvasX - offsetX) / scaleX;
+  const worldY = (canvasY - offsetY) / scaleY;
 
   const nodes = {
     intersection1: { x: 604, y: 567 },
