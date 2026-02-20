@@ -38,7 +38,7 @@ const LEVEL = {
     intersection1: { x: 322, y: 560 },
     intersection2: { x: 324, y: 345 },
     intersection3: { x: 741, y: 344 },
-    intersectionTurn: { x: 1016, y: 339 }, // new interactive turn
+    intersectionTurn: { x: 1016, y: 339 },
     intersection4: { x: 1020, y: 622 }
   },
 
@@ -59,7 +59,7 @@ const INTERSECTION_RULES = {
   intersection1: ["up", "right"],
   intersection2: ["left", "right"],
   intersection3: ["up", "right"],
-  intersectionTurn: ["right", "down"],   // ← THIS IS THE NEW ONE
+  intersectionTurn: ["right", "down"],
   intersection4: ["left", "down"]
 };
 
@@ -101,7 +101,6 @@ function unlockAudio() {
 /* ================= CANVAS ================= */
 
 function resize() {
-
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
@@ -118,8 +117,6 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-canvas.style.touchAction = "none";
-
 /* ================= LOAD ================= */
 
 function load(src) {
@@ -129,7 +126,6 @@ function load(src) {
 }
 
 const mapImg = load("map03.png");
-
 const arrowUpImg = load("arrow_up.png");
 const arrowLeftImg = load("arrow_left.png");
 const arrowRightImg = load("arrow_right.png");
@@ -233,6 +229,32 @@ function handleIntersection(cart, name, x, y) {
   cart[name] = true;
 }
 
+/* ================= BUILDING CHECK ================= */
+
+function checkBuildings(cart) {
+
+  for (let key in LEVEL.buildings) {
+
+    const node = LEVEL.buildings[key];
+
+    if (Math.hypot(cart.x - node.x, cart.y - node.y) < 25) {
+
+      activeCarts = activeCarts.filter(c => c !== cart);
+
+      if (key === cart.destination) {
+        score += 100;
+        sounds[key].currentTime = 0;
+        sounds[key].play();
+      } else {
+        lives--;
+        sounds.wrong.currentTime = 0;
+        sounds.wrong.play();
+        if (lives <= 0) loseGame();
+      }
+    }
+  }
+}
+
 /* ================= DRAW ================= */
 
 function draw() {
@@ -244,6 +266,27 @@ function draw() {
   drawIntersectionArrows();
   drawCarts();
   drawHUD();
+}
+
+function drawCarts() {
+
+  for (let cart of activeCarts) {
+
+    let rotation = 0;
+
+    if (cart.vy > 0) rotation = 0;
+    else if (cart.vy < 0) rotation = Math.PI;
+    else if (cart.vx < 0) rotation = Math.PI / 2;
+    else if (cart.vx > 0) rotation = -Math.PI / 2;
+
+    const bob = Math.sin(cart.animTime) * 4;
+
+    ctx.save();
+    ctx.translate(cart.x, cart.y + bob);
+    ctx.rotate(rotation);
+    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
+    ctx.restore();
+  }
 }
 
 function drawIntersectionArrows() {
@@ -285,9 +328,8 @@ canvas.addEventListener("click", e => {
   for (let name in LEVEL.intersections) {
 
     const node = LEVEL.intersections[name];
-    const dist = Math.hypot(worldX - node.x, worldY - node.y);
 
-    if (dist < TAP_RADIUS) {
+    if (Math.hypot(worldX - node.x, worldY - node.y) < TAP_RADIUS) {
 
       const allowed = INTERSECTION_RULES[name];
       const current = intersections[name];
@@ -308,25 +350,6 @@ function drawHUD() {
 }
 
 /* ================= LOOP ================= */
-
-function checkBuildings(cart) {
-  for (let key in LEVEL.buildings) {
-    const node = LEVEL.buildings[key];
-    if (Math.hypot(cart.x - node.x, cart.y - node.y) < 25) {
-      activeCarts = activeCarts.filter(c => c !== cart);
-      if (key === cart.destination) {
-        score += 100;
-        sounds[key].currentTime = 0;
-        sounds[key].play();
-      } else {
-        lives--;
-        sounds.wrong.currentTime = 0;
-        sounds.wrong.play();
-        if (lives <= 0) loseGame();
-      }
-    }
-  }
-}
 
 function loseGame() {
   gameState = "lose";
