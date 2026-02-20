@@ -28,7 +28,7 @@ let scaleY = 1;
 let offsetX = 0;
 let offsetY = 0;
 
-/* ================= LEVEL 02 DATA ================= */
+/* ================= LEVEL DATA ================= */
 
 const LEVEL = {
 
@@ -41,6 +41,8 @@ const LEVEL = {
     intersection4: { x: 1020, y: 622 }
   },
 
+  forcedTurn: { x: 1016, y: 339 },
+
   buildings: {
     sawmill: { x: 531, y: 560 },
     barn: { x: 174, y: 338 },
@@ -48,10 +50,11 @@ const LEVEL = {
     tavern: { x: 867, y: 627 },
     windmill: { x: 1029, y: 758 }
   }
-
 };
 
 let intersections;
+
+/* ================= INTERSECTION RULES ================= */
 
 const INTERSECTION_RULES = {
   intersection1: ["up", "right"],
@@ -105,28 +108,11 @@ function resize() {
   const widthRatio = canvas.width / WORLD_WIDTH;
   const heightRatio = canvas.height / WORLD_HEIGHT;
 
-  const isPhone = window.innerWidth <= 768;
+  scaleX = Math.min(widthRatio, heightRatio);
+  scaleY = scaleX;
 
-  if (isPhone) {
-
-    const PHONE_ZOOM = 0.75;
-    const PHONE_HEIGHT_STRETCH = 1.3;
-    const PHONE_Y_SHIFT = -80;
-
-    scaleX = Math.max(widthRatio, heightRatio) * PHONE_ZOOM;
-    scaleY = scaleX * PHONE_HEIGHT_STRETCH;
-
-    offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
-    offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2 + PHONE_Y_SHIFT;
-
-  } else {
-
-    scaleX = Math.min(widthRatio, heightRatio);
-    scaleY = scaleX;
-
-    offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
-    offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2;
-  }
+  offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
+  offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2;
 }
 
 window.addEventListener("resize", resize);
@@ -221,6 +207,16 @@ function update() {
     cart.y += cart.vy;
     cart.animTime += 0.15;
 
+    // Forced down turn at (1016, 339)
+    const ft = LEVEL.forcedTurn;
+    if (!cart.forcedDown &&
+        Math.hypot(cart.x - ft.x, cart.y - ft.y) < 6) {
+
+      cart.vx = 0;
+      cart.vy = cart.speed;
+      cart.forcedDown = true;
+    }
+
     for (let key in LEVEL.intersections) {
       const node = LEVEL.intersections[key];
       handleIntersection(cart, key, node.x, node.y);
@@ -233,20 +229,17 @@ function update() {
 function handleIntersection(cart, name, x, y) {
 
   const dist = Math.hypot(cart.x - x, cart.y - y);
+  if (dist >= 6) return;
+  if (cart[name]) return;
 
-  if (dist < 6) {
+  const dir = intersections[name];
 
-    if (cart[name]) return;
+  if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
+  if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
+  if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
+  if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
 
-    const dir = intersections[name];
-
-    if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
-    if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
-    if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
-    if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
-
-    cart[name] = true;
-  }
+  cart[name] = true;
 }
 
 function checkBuildings(cart) {
@@ -261,17 +254,13 @@ function checkBuildings(cart) {
       activeCarts = activeCarts.filter(c => c !== cart);
 
       if (key === cart.destination) {
-
         score += 100;
         sounds[key].currentTime = 0;
         sounds[key].play();
-
       } else {
-
         lives--;
         sounds.wrong.currentTime = 0;
         sounds.wrong.play();
-
         if (lives <= 0) loseGame();
       }
     }
@@ -358,18 +347,17 @@ canvas.addEventListener("click", e => {
       const allowed = INTERSECTION_RULES[name];
       const current = intersections[name];
       const index = allowed.indexOf(current);
+
       intersections[name] = allowed[(index + 1) % allowed.length];
     }
   }
 });
 
-/* ================= HUD (DRAWN IN MAP SPACE) ================= */
+/* ================= HUD ================= */
 
 function drawHUD() {
-
   ctx.fillStyle = "white";
   ctx.font = "28px Arial";
-
   ctx.fillText("Score: " + score, 40, 50);
   ctx.fillText("Lives: " + lives, 40, 85);
 }
