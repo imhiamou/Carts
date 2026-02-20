@@ -36,6 +36,35 @@ let spawnTimer;
 let activeCarts;
 let intersections;
 
+/* ================= AUDIO ================= */
+
+const sounds = {
+  spawn: new Audio("cart.mp3"),
+  wrong: new Audio("Wrong.mp3"),
+  sawmill: new Audio("sawmill.mp3"),
+  mine: new Audio("mine.mp3"),
+  barn: new Audio("barn.mp3"),
+  tavern: new Audio("tavern.mp3"),
+  windmill: new Audio("windmill.mp3")
+};
+
+Object.values(sounds).forEach(s => {
+  s.volume = 0.6;
+});
+
+let audioUnlocked = false;
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  Object.values(sounds).forEach(s => {
+    s.play().then(() => {
+      s.pause();
+      s.currentTime = 0;
+    }).catch(() => {});
+  });
+  audioUnlocked = true;
+}
+
 /* ================= CANVAS ================= */
 
 function resize() {
@@ -136,6 +165,9 @@ function spawnCart() {
     turned2: false,
     animTime: 0
   });
+
+  sounds.spawn.currentTime = 0;
+  sounds.spawn.play();
 }
 
 /* ================= UPDATE ================= */
@@ -210,9 +242,21 @@ function checkBuildings(cart) {
       activeCarts = activeCarts.filter(c => c !== cart);
 
       if (key === cart.destination) {
+
         score += 100;
+
+        if (sounds[key]) {
+          sounds[key].currentTime = 0;
+          sounds[key].play();
+        }
+
       } else {
+
         lives--;
+
+        sounds.wrong.currentTime = 0;
+        sounds.wrong.play();
+
         if (lives <= 0) loseGame();
       }
     }
@@ -314,6 +358,8 @@ function drawHUD() {
 /* ================= INPUT ================= */
 
 function handleInput(clientX, clientY) {
+
+  unlockAudio();
 
   if (gameState !== "playing") return;
 
