@@ -38,10 +38,9 @@ const LEVEL = {
     intersection1: { x: 322, y: 560 },
     intersection2: { x: 324, y: 345 },
     intersection3: { x: 741, y: 344 },
+    intersectionTurn: { x: 1016, y: 339 }, // new interactive turn
     intersection4: { x: 1020, y: 622 }
   },
-
-  forcedTurn: { x: 1016, y: 339 },
 
   buildings: {
     sawmill: { x: 531, y: 560 },
@@ -54,10 +53,13 @@ const LEVEL = {
 
 let intersections;
 
+/* ================= INTERSECTION RULES ================= */
+
 const INTERSECTION_RULES = {
   intersection1: ["up", "right"],
   intersection2: ["left", "right"],
   intersection3: ["up", "right"],
+  intersectionTurn: ["right", "down"],   // ← THIS IS THE NEW ONE
   intersection4: ["left", "down"]
 };
 
@@ -156,6 +158,7 @@ function resetGame() {
     intersection1: "up",
     intersection2: "left",
     intersection3: "up",
+    intersectionTurn: "right",
     intersection4: "left"
   };
 
@@ -180,8 +183,7 @@ function spawnCart() {
     speed: speed,
     destination: randomDest,
     img: CART_IMAGES[randomDest],
-    animTime: 0,
-    forcedDown: false
+    animTime: 0
   });
 
   sounds.spawn.currentTime = 0;
@@ -205,20 +207,6 @@ function update() {
     cart.x += cart.vx;
     cart.y += cart.vy;
     cart.animTime += 0.15;
-
-    // Robust forced turn detection
-    const ft = LEVEL.forcedTurn;
-
-    if (!cart.forcedDown &&
-        Math.abs(cart.x - ft.x) < 25 &&
-        cart.y <= ft.y + 10 &&
-        cart.y >= ft.y - 60) {
-
-      cart.x = ft.x;
-      cart.vx = 0;
-      cart.vy = cart.speed;
-      cart.forcedDown = true;
-    }
 
     for (let key in LEVEL.intersections) {
       const node = LEVEL.intersections[key];
@@ -245,31 +233,6 @@ function handleIntersection(cart, name, x, y) {
   cart[name] = true;
 }
 
-function checkBuildings(cart) {
-
-  for (let key in LEVEL.buildings) {
-
-    const node = LEVEL.buildings[key];
-    const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
-
-    if (dist < 25) {
-
-      activeCarts = activeCarts.filter(c => c !== cart);
-
-      if (key === cart.destination) {
-        score += 100;
-        sounds[key].currentTime = 0;
-        sounds[key].play();
-      } else {
-        lives--;
-        sounds.wrong.currentTime = 0;
-        sounds.wrong.play();
-        if (lives <= 0) loseGame();
-      }
-    }
-  }
-}
-
 /* ================= DRAW ================= */
 
 function draw() {
@@ -281,27 +244,6 @@ function draw() {
   drawIntersectionArrows();
   drawCarts();
   drawHUD();
-}
-
-function drawCarts() {
-
-  for (let cart of activeCarts) {
-
-    let rotation = 0;
-
-    if (cart.vy > 0) rotation = 0;
-    else if (cart.vy < 0) rotation = Math.PI;
-    else if (cart.vx < 0) rotation = Math.PI / 2;
-    else if (cart.vx > 0) rotation = -Math.PI / 2;
-
-    const bob = Math.sin(cart.animTime) * 4;
-
-    ctx.save();
-    ctx.translate(cart.x, cart.y + bob);
-    ctx.rotate(rotation);
-    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
-    ctx.restore();
-  }
 }
 
 function drawIntersectionArrows() {
@@ -366,6 +308,25 @@ function drawHUD() {
 }
 
 /* ================= LOOP ================= */
+
+function checkBuildings(cart) {
+  for (let key in LEVEL.buildings) {
+    const node = LEVEL.buildings[key];
+    if (Math.hypot(cart.x - node.x, cart.y - node.y) < 25) {
+      activeCarts = activeCarts.filter(c => c !== cart);
+      if (key === cart.destination) {
+        score += 100;
+        sounds[key].currentTime = 0;
+        sounds[key].play();
+      } else {
+        lives--;
+        sounds.wrong.currentTime = 0;
+        sounds.wrong.play();
+        if (lives <= 0) loseGame();
+      }
+    }
+  }
+}
 
 function loseGame() {
   gameState = "lose";
