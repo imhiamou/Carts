@@ -28,11 +28,6 @@ let scaleY = 1;
 let offsetX = 0;
 let offsetY = 0;
 
-/* ================= DEBUG MODE ================= */
-
-let debugMode = false;
-let debugPoints = [];
-
 /* ================= GAME STATE ================= */
 
 let gameState;
@@ -40,6 +35,30 @@ let score;
 let lives;
 let spawnTimer;
 let activeCarts;
+
+/* ================= LEVEL 02 DATA (MAP03) ================= */
+
+const LEVEL = {
+
+  spawn: { x: 322, y: 879 },
+
+  intersections: {
+    intersection1: { x: 322, y: 560 },
+    intersection2: { x: 324, y: 345 },
+    intersection3: { x: 741, y: 344 },
+    intersection4: { x: 1020, y: 622 }
+  },
+
+  buildings: {
+    sawmill: { x: 531, y: 560 },
+    barn: { x: 174, y: 338 },
+    mine: { x: 749, y: 224 },
+    tavern: { x: 867, y: 627 },
+    windmill: { x: 1029, y: 758 }
+  }
+
+};
+
 let intersections;
 
 /* ================= AUDIO ================= */
@@ -55,19 +74,6 @@ const sounds = {
 };
 
 Object.values(sounds).forEach(s => s.volume = 0.6);
-
-let audioUnlocked = false;
-
-function unlockAudio() {
-  if (audioUnlocked) return;
-  Object.values(sounds).forEach(s => {
-    s.play().then(() => {
-      s.pause();
-      s.currentTime = 0;
-    }).catch(() => {});
-  });
-  audioUnlocked = true;
-}
 
 /* ================= CANVAS ================= */
 
@@ -142,10 +148,10 @@ function resetGame() {
   spawnTimer = 0;
   activeCarts = [];
 
-  intersections = {
-    intersection1: "up",
-    intersection2: "up"
-  };
+  intersections = {};
+  for (let key in LEVEL.intersections) {
+    intersections[key] = "up";
+  }
 
   ui.style.display = "none";
 }
@@ -161,15 +167,13 @@ function spawnCart() {
   const speed = BASE_SPEED + speedBoost;
 
   activeCarts.push({
-    x: 599,
-    y: 846,
+    x: LEVEL.spawn.x,
+    y: LEVEL.spawn.y,
     vx: 0,
     vy: -speed,
     speed: speed,
     destination: randomDest,
     img: CART_IMAGES[randomDest],
-    turned1: false,
-    turned2: false,
     animTime: 0
   });
 
@@ -195,8 +199,10 @@ function update() {
     cart.y += cart.vy;
     cart.animTime += 0.15;
 
-    handleIntersection(cart, "intersection1", 604, 567);
-    handleIntersection(cart, "intersection2", 600, 330);
+    for (let key in LEVEL.intersections) {
+      const node = LEVEL.intersections[key];
+      handleIntersection(cart, key, node.x, node.y);
+    }
 
     checkBuildings(cart);
   }
@@ -224,6 +230,10 @@ function handleIntersection(cart, name, x, y) {
       cart.vx = cart.speed;
       cart.vy = 0;
     }
+    if (dir === "down") {
+      cart.vx = 0;
+      cart.vy = cart.speed;
+    }
 
     cart[name] = true;
   }
@@ -231,13 +241,7 @@ function handleIntersection(cart, name, x, y) {
 
 function checkBuildings(cart) {
 
-  const buildings = {
-    sawmill: { x: 598, y: 218 },
-    mine: { x: 351, y: 320 },
-    barn: { x: 783, y: 320 },
-    tavern: { x: 384, y: 571 },
-    windmill: { x: 833, y: 564 }
-  };
+  const buildings = LEVEL.buildings;
 
   for (let key in buildings) {
 
@@ -260,7 +264,6 @@ function checkBuildings(cart) {
       } else {
 
         lives--;
-
         sounds.wrong.currentTime = 0;
         sounds.wrong.play();
 
@@ -270,12 +273,9 @@ function checkBuildings(cart) {
   }
 }
 
-/* ================= DRAW ================= */
-
 function draw() {
 
   ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
-
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
@@ -307,30 +307,12 @@ function draw() {
     ctx.restore();
   }
 
-  /* ===== DEBUG DRAW ===== */
-
-  if (debugMode) {
-
-    ctx.fillStyle = "red";
-    ctx.font = "18px Arial";
-
-    debugPoints.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillText(p.x + "," + p.y, p.x + 10, p.y - 10);
-    });
-  }
-
   drawHUD();
 }
 
 function drawIntersectionArrows() {
 
-  const nodes = {
-    intersection1: { x: 604, y: 567 },
-    intersection2: { x: 600, y: 330 }
-  };
+  const nodes = LEVEL.intersections;
 
   for (let name in nodes) {
 
@@ -351,35 +333,39 @@ function drawIntersectionArrows() {
   }
 }
 
-/* ================= DEBUG CLICK ================= */
+canvas.addEventListener("click", e => {
 
-canvas.addEventListener("click", function (e) {
-
-  if (!debugMode) return;
+  if (gameState !== "playing") return;
 
   const rect = canvas.getBoundingClientRect();
+  const worldX = (e.clientX - rect.left - offsetX) / scaleX;
+  const worldY = (e.clientY - rect.top - offsetY) / scaleY;
 
-  const canvasX = e.clientX - rect.left;
-  const canvasY = e.clientY - rect.top;
+  const nodes = LEVEL.intersections;
 
-  const worldX = (canvasX - offsetX) / scaleX;
-  const worldY = (canvasY - offsetY) / scaleY;
+  for (let name in nodes) {
 
-  const point = {
-    x: Math.round(worldX),
-    y: Math.round(worldY)
-  };
+    const node = nodes[name];
+    const dist = Math.hypot(worldX - node.x, worldY - node.y);
 
-  debugPoints.push(point);
+    if (dist < TAP_RADIUS) {
 
-  console.clear();
-  console.log("==== CLICKED COORDINATES ====");
-  debugPoints.forEach((p, i) => {
-    console.log("Point " + (i + 1) + " → x:", p.x, " y:", p.y);
-  });
+      const current = intersections[name];
+
+      intersections[name] =
+        current === "up" ? "left" :
+        current === "left" ? "right" :
+        current === "right" ? "down" :
+        "up";
+    }
+  }
 });
 
-/* ================= LOOP ================= */
+function loseGame() {
+  gameState = "lose";
+  resultText.innerText = "GAME OVER";
+  ui.style.display = "block";
+}
 
 function loop() {
   update();
