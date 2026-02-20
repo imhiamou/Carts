@@ -101,6 +101,7 @@ function unlockAudio() {
 /* ================= CANVAS ================= */
 
 function resize() {
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
@@ -221,10 +222,22 @@ function handleIntersection(cart, name, x, y) {
 
   const dir = intersections[name];
 
-  if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
-  if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
-  if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
-  if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
+  if (dir === "up") {
+    cart.vx = 0;
+    cart.vy = -cart.speed;
+  }
+  else if (dir === "down") {
+    cart.vx = 0;
+    cart.vy = cart.speed;
+  }
+  else if (dir === "left") {
+    cart.vx = -cart.speed;
+    cart.vy = 0;
+  }
+  else if (dir === "right") {
+    cart.vx = cart.speed;
+    cart.vy = 0;
+  }
 
   cart[name] = true;
 }
@@ -268,16 +281,25 @@ function draw() {
   drawHUD();
 }
 
+/* ===== FIXED ROTATION LOGIC ===== */
+
 function drawCarts() {
 
   for (let cart of activeCarts) {
 
     let rotation = 0;
 
-    if (cart.vy > 0) rotation = 0;
-    else if (cart.vy < 0) rotation = Math.PI;
-    else if (cart.vx < 0) rotation = Math.PI / 2;
-    else if (cart.vx > 0) rotation = -Math.PI / 2;
+    // UP
+    if (cart.vy < 0) rotation = 0;
+
+    // DOWN
+    else if (cart.vy > 0) rotation = Math.PI;
+
+    // LEFT
+    else if (cart.vx < 0) rotation = -Math.PI / 2;
+
+    // RIGHT
+    else if (cart.vx > 0) rotation = Math.PI / 2;
 
     const bob = Math.sin(cart.animTime) * 4;
 
