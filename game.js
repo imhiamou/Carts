@@ -54,8 +54,6 @@ const LEVEL = {
 
 let intersections;
 
-/* ================= INTERSECTION RULES ================= */
-
 const INTERSECTION_RULES = {
   intersection1: ["up", "right"],
   intersection2: ["left", "right"],
@@ -182,7 +180,8 @@ function spawnCart() {
     speed: speed,
     destination: randomDest,
     img: CART_IMAGES[randomDest],
-    animTime: 0
+    animTime: 0,
+    forcedDown: false
   });
 
   sounds.spawn.currentTime = 0;
@@ -207,11 +206,15 @@ function update() {
     cart.y += cart.vy;
     cart.animTime += 0.15;
 
-    // Forced down turn at (1016, 339)
+    // Robust forced turn detection
     const ft = LEVEL.forcedTurn;
-    if (!cart.forcedDown &&
-        Math.hypot(cart.x - ft.x, cart.y - ft.y) < 6) {
 
+    if (!cart.forcedDown &&
+        Math.abs(cart.x - ft.x) < 25 &&
+        cart.y <= ft.y + 10 &&
+        cart.y >= ft.y - 60) {
+
+      cart.x = ft.x;
       cart.vx = 0;
       cart.vy = cart.speed;
       cart.forcedDown = true;
@@ -229,7 +232,7 @@ function update() {
 function handleIntersection(cart, name, x, y) {
 
   const dist = Math.hypot(cart.x - x, cart.y - y);
-  if (dist >= 6) return;
+  if (dist >= 8) return;
   if (cart[name]) return;
 
   const dir = intersections[name];
@@ -249,7 +252,7 @@ function checkBuildings(cart) {
     const node = LEVEL.buildings[key];
     const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
 
-    if (dist < 20) {
+    if (dist < 25) {
 
       activeCarts = activeCarts.filter(c => c !== cart);
 
