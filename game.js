@@ -83,7 +83,7 @@ function resize() {
     // 🔥 CHANGE THIS TO STRETCH PHONE HEIGHT
     const PHONE_HEIGHT_STRETCH = 1.3;
 
-    const PHONE_Y_SHIFT = -120;
+    const PHONE_Y_SHIFT = -80;
 
     scaleX = Math.max(widthRatio, heightRatio) * PHONE_ZOOM;
     scaleY = scaleX * PHONE_HEIGHT_STRETCH;
