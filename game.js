@@ -28,6 +28,11 @@ let scaleY = 1;
 let offsetX = 0;
 let offsetY = 0;
 
+/* ================= DEBUG MODE ================= */
+
+let debugMode = true;
+let debugPoints = [];
+
 /* ================= GAME STATE ================= */
 
 let gameState;
@@ -79,10 +84,7 @@ function resize() {
   if (isPhone) {
 
     const PHONE_ZOOM = 0.75;
-
-    // 🔥 CHANGE THIS TO STRETCH PHONE HEIGHT
     const PHONE_HEIGHT_STRETCH = 1.3;
-
     const PHONE_Y_SHIFT = -80;
 
     scaleX = Math.max(widthRatio, heightRatio) * PHONE_ZOOM;
@@ -114,7 +116,7 @@ function load(src) {
   return img;
 }
 
-const mapImg = load("map02.png");
+const mapImg = load("map03.png");
 
 const arrowUpImg = load("arrow_up.png");
 const arrowLeftImg = load("arrow_left.png");
@@ -305,6 +307,21 @@ function draw() {
     ctx.restore();
   }
 
+  /* ===== DEBUG DRAW ===== */
+
+  if (debugMode) {
+
+    ctx.fillStyle = "red";
+    ctx.font = "18px Arial";
+
+    debugPoints.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText(p.x + "," + p.y, p.x + 10, p.y - 10);
+    });
+  }
+
   drawHUD();
 }
 
@@ -334,85 +351,33 @@ function drawIntersectionArrows() {
   }
 }
 
-function drawHUD() {
+/* ================= DEBUG CLICK ================= */
 
-  const isPhone = window.innerWidth <= 768;
+canvas.addEventListener("click", function (e) {
 
-  if (isPhone) {
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = "white";
-    ctx.font = "24px Arial";
-
-    ctx.fillText("Score: " + score, 20, 40);
-    ctx.fillText("Lives: " + lives, 20, 70);
-
-  } else {
-
-    ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
-    ctx.fillStyle = "white";
-    ctx.font = "28px Arial";
-
-    ctx.fillText("Score: " + score, 20, 40);
-    ctx.fillText("Lives: " + lives, 20, 75);
-  }
-}
-
-/* ================= INPUT ================= */
-
-function handleInput(clientX, clientY) {
-
-  unlockAudio();
-
-  if (gameState !== "playing") return;
+  if (!debugMode) return;
 
   const rect = canvas.getBoundingClientRect();
 
-  const canvasX = clientX - rect.left;
-  const canvasY = clientY - rect.top;
+  const canvasX = e.clientX - rect.left;
+  const canvasY = e.clientY - rect.top;
 
   const worldX = (canvasX - offsetX) / scaleX;
   const worldY = (canvasY - offsetY) / scaleY;
 
-  const nodes = {
-    intersection1: { x: 604, y: 567 },
-    intersection2: { x: 600, y: 330 }
+  const point = {
+    x: Math.round(worldX),
+    y: Math.round(worldY)
   };
 
-  for (let name in nodes) {
+  debugPoints.push(point);
 
-    const node = nodes[name];
-    const dist = Math.hypot(worldX - node.x, worldY - node.y);
-
-    if (dist < TAP_RADIUS) {
-
-      const current = intersections[name];
-
-      intersections[name] =
-        current === "up" ? "left" :
-        current === "left" ? "right" :
-        "up";
-    }
-  }
-}
-
-canvas.addEventListener("click", e => {
-  handleInput(e.clientX, e.clientY);
+  console.clear();
+  console.log("==== CLICKED COORDINATES ====");
+  debugPoints.forEach((p, i) => {
+    console.log("Point " + (i + 1) + " → x:", p.x, " y:", p.y);
+  });
 });
-
-canvas.addEventListener("touchstart", e => {
-  e.preventDefault();
-  const touch = e.changedTouches[0];
-  handleInput(touch.clientX, touch.clientY);
-});
-
-/* ================= GAME OVER ================= */
-
-function loseGame() {
-  gameState = "lose";
-  resultText.innerText = "GAME OVER";
-  ui.style.display = "block";
-}
 
 /* ================= LOOP ================= */
 
