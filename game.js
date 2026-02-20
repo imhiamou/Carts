@@ -28,15 +28,7 @@ let scaleY = 1;
 let offsetX = 0;
 let offsetY = 0;
 
-/* ================= GAME STATE ================= */
-
-let gameState;
-let score;
-let lives;
-let spawnTimer;
-let activeCarts;
-
-/* ================= LEVEL 02 DATA (MAP03) ================= */
+/* ================= LEVEL 02 DATA ================= */
 
 const LEVEL = {
 
@@ -59,7 +51,24 @@ const LEVEL = {
 
 };
 
+/* ================= INTERSECTION RULES ================= */
+
 let intersections;
+
+const INTERSECTION_RULES = {
+  intersection1: ["up", "right"],
+  intersection2: ["left", "right"],
+  intersection3: ["up", "right"],
+  intersection4: ["left", "down"]
+};
+
+/* ================= GAME STATE ================= */
+
+let gameState;
+let score;
+let lives;
+let spawnTimer;
+let activeCarts;
 
 /* ================= AUDIO ================= */
 
@@ -74,6 +83,19 @@ const sounds = {
 };
 
 Object.values(sounds).forEach(s => s.volume = 0.6);
+
+let audioUnlocked = false;
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  Object.values(sounds).forEach(s => {
+    s.play().then(() => {
+      s.pause();
+      s.currentTime = 0;
+    }).catch(() => {});
+  });
+  audioUnlocked = true;
+}
 
 /* ================= CANVAS ================= */
 
@@ -148,10 +170,12 @@ function resetGame() {
   spawnTimer = 0;
   activeCarts = [];
 
-  intersections = {};
-  for (let key in LEVEL.intersections) {
-    intersections[key] = "up";
-  }
+  intersections = {
+    intersection1: "up",
+    intersection2: "left",
+    intersection3: "up",
+    intersection4: "left"
+  };
 
   ui.style.display = "none";
 }
@@ -169,8 +193,8 @@ function spawnCart() {
   activeCarts.push({
     x: LEVEL.spawn.x,
     y: LEVEL.spawn.y,
-    vx: 0,
-    vy: -speed,
+    vx: speed,   // road starts moving right from spawn
+    vy: 0,
     speed: speed,
     destination: randomDest,
     img: CART_IMAGES[randomDest],
@@ -241,11 +265,9 @@ function handleIntersection(cart, name, x, y) {
 
 function checkBuildings(cart) {
 
-  const buildings = LEVEL.buildings;
+  for (let key in LEVEL.buildings) {
 
-  for (let key in buildings) {
-
-    const node = buildings[key];
+    const node = LEVEL.buildings[key];
     const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
 
     if (dist < 20) {
@@ -272,6 +294,8 @@ function checkBuildings(cart) {
     }
   }
 }
+
+/* ================= DRAW ================= */
 
 function draw() {
 
@@ -312,28 +336,40 @@ function draw() {
 
 function drawIntersectionArrows() {
 
-  const nodes = LEVEL.intersections;
+  for (let name in LEVEL.intersections) {
 
-  for (let name in nodes) {
-
-    const node = nodes[name];
+    const node = LEVEL.intersections[name];
     const state = intersections[name];
 
     let img = arrowUpImg;
-    if (state === "left") img = arrowLeftImg;
-    if (state === "right") img = arrowRightImg;
+    let rotation = 0;
 
+    if (state === "left") img = arrowLeftImg;
+    else if (state === "right") img = arrowRightImg;
+    else if (state === "down") {
+      img = arrowUpImg;
+      rotation = Math.PI;
+    }
+
+    ctx.save();
+    ctx.translate(node.x, node.y);
+    ctx.rotate(rotation);
     ctx.drawImage(
       img,
-      node.x - ARROW_SIZE / 2,
-      node.y - ARROW_SIZE / 2,
+      -ARROW_SIZE / 2,
+      -ARROW_SIZE / 2,
       ARROW_SIZE,
       ARROW_SIZE
     );
+    ctx.restore();
   }
 }
 
+/* ================= INPUT ================= */
+
 canvas.addEventListener("click", e => {
+
+  unlockAudio();
 
   if (gameState !== "playing") return;
 
@@ -341,25 +377,37 @@ canvas.addEventListener("click", e => {
   const worldX = (e.clientX - rect.left - offsetX) / scaleX;
   const worldY = (e.clientY - rect.top - offsetY) / scaleY;
 
-  const nodes = LEVEL.intersections;
+  for (let name in LEVEL.intersections) {
 
-  for (let name in nodes) {
-
-    const node = nodes[name];
+    const node = LEVEL.intersections[name];
     const dist = Math.hypot(worldX - node.x, worldY - node.y);
 
     if (dist < TAP_RADIUS) {
 
+      const allowed = INTERSECTION_RULES[name];
       const current = intersections[name];
 
-      intersections[name] =
-        current === "up" ? "left" :
-        current === "left" ? "right" :
-        current === "right" ? "down" :
-        "up";
+      const index = allowed.indexOf(current);
+      const nextIndex = (index + 1) % allowed.length;
+
+      intersections[name] = allowed[nextIndex];
     }
   }
 });
+
+/* ================= HUD ================= */
+
+function drawHUD() {
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "white";
+  ctx.font = "24px Arial";
+
+  ctx.fillText("Score: " + score, 20, 40);
+  ctx.fillText("Lives: " + lives, 20, 70);
+}
+
+/* ================= LOOP ================= */
 
 function loseGame() {
   gameState = "lose";
