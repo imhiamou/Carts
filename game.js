@@ -112,7 +112,7 @@ function resize() {
     scaleX = Math.min(widthRatio, heightRatio);
 
     // Stretch ONLY height
-    const HEIGHT_STRETCH = 1.4;
+    const HEIGHT_STRETCH = 1.8;
     scaleY = scaleX * HEIGHT_STRETCH;
 
   } else {
