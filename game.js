@@ -105,7 +105,7 @@ function resize() {
   const heightRatio = canvas.height / WORLD_HEIGHT;
 
   const isPhone = window.innerWidth <= 768;
-  const Y_SHIFT = 0;
+  const Y_SHIFT = -150;
   if (isPhone) {
 
     // Keep normal horizontal scaling
