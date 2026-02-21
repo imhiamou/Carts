@@ -38,6 +38,7 @@ const LEVEL = {
     intersection1: { x: 322, y: 560 },
     intersection2: { x: 324, y: 345 },
     intersection3: { x: 741, y: 344 },
+    intersectionTurn: { x: 1016, y: 339 },
     intersection4: { x: 1020, y: 622 }
   },
 
@@ -56,6 +57,7 @@ const INTERSECTION_RULES = {
   intersection1: ["up", "right"],
   intersection2: ["left", "right"],
   intersection3: ["up", "right"],
+  intersectionTurn: ["right", "down"],
   intersection4: ["left", "down"]
 };
 
@@ -106,10 +108,13 @@ function resize() {
   const Y_SHIFT = -45;
 
   if (isPhone) {
+
     scaleX = Math.min(widthRatio, heightRatio);
     const HEIGHT_STRETCH = 1.9;
     scaleY = scaleX * HEIGHT_STRETCH;
+
   } else {
+
     scaleX = Math.min(widthRatio, heightRatio);
     scaleY = scaleX;
   }
@@ -158,6 +163,7 @@ function resetGame() {
     intersection1: "up",
     intersection2: "left",
     intersection3: "up",
+    intersectionTurn: "right",
     intersection4: "left"
   };
 
@@ -209,6 +215,7 @@ function update() {
     cart.animTime += 0.15;
 
     /* HARD FORCED TURN DOWN AT X >= 1016 */
+    /* ===== HARD FORCED TURN DOWN AT X >= 1016 ===== */
 
     if (!cart.forcedDown && cart.x >= 1016) {
       cart.x = 1016;
@@ -234,47 +241,7 @@ function handleIntersection(cart, name, x, y) {
 
   const dir = intersections[name];
 
-  if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
-  if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
-  if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
-  if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
-
-  cart[name] = true;
-}
-
-/* ================= DRAW ================= */
-
-function draw() {
-
-  ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
-  ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-  drawIntersectionArrows();
-  drawCarts();
-  drawHUD();
-}
-
-function drawCarts() {
-
-  for (let cart of activeCarts) {
-
-    let rotation = 0;
-
-    if (cart.vy > 0) rotation = 0;
-    else if (cart.vy < 0) rotation = Math.PI;
-    else if (cart.vx < 0) rotation = Math.PI / 2;
-    else if (cart.vx > 0) rotation = -Math.PI / 2;
-
-    const bob = Math.sin(cart.animTime) * 4;
-
-    ctx.save();
-    ctx.translate(cart.x, cart.y + bob);
-    ctx.rotate(rotation);
-    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
-    ctx.restore();
-  }
-}
+@@ -278,25 +284,109 @@ function drawCarts() {
 
 function drawIntersectionArrows() {
 
@@ -299,4 +266,88 @@ function drawIntersectionArrows() {
     ctx.drawImage(img, -ARROW_SIZE/2, -ARROW_SIZE/2, ARROW_SIZE, ARROW_SIZE);
     ctx.restore();
   }
+}
+
+/* ================= CLICK ================= */
+
+canvas.addEventListener("click", e => {
+
+  unlockAudio();
+  if (gameState !== "playing") return;
+
+  const rect = canvas.getBoundingClientRect();
+  const worldX = (e.clientX - rect.left - offsetX) / scaleX;
+  const worldY = (e.clientY - rect.top - offsetY) / scaleY;
+
+  for (let name in LEVEL.intersections) {
+
+    const node = LEVEL.intersections[name];
+
+    if (Math.hypot(worldX - node.x, worldY - node.y) < TAP_RADIUS) {
+
+      const allowed = INTERSECTION_RULES[name];
+      const current = intersections[name];
+      const index = allowed.indexOf(current);
+
+      intersections[name] = allowed[(index + 1) % allowed.length];
+    }
+  }
+});
+
+/* ================= HUD ================= */
+
+function drawHUD() {
+  ctx.fillStyle = "white";
+  ctx.font = "28px Arial";
+  ctx.fillText("Score: " + score, 40, 50);
+  ctx.fillText("Lives: " + lives, 40, 85);
+}
+
+/* ================= BUILDINGS ================= */
+
+function checkBuildings(cart) {
+
+  for (let key in LEVEL.buildings) {
+
+    const node = LEVEL.buildings[key];
+
+    if (Math.hypot(cart.x - node.x, cart.y - node.y) < 25) {
+
+      activeCarts = activeCarts.filter(c => c !== cart);
+
+      if (key === cart.destination) {
+        score += 100;
+        sounds[key].currentTime = 0;
+        sounds[key].play();
+      } else {
+        lives--;
+        sounds.wrong.currentTime = 0;
+        sounds.wrong.play();
+        if (lives <= 0) loseGame();
+      }
+    }
+  }
+}
+
+/* ================= LOOP ================= */
+
+function loseGame() {
+  gameState = "lose";
+  resultText.innerText = "GAME OVER";
+  ui.style.display = "block";
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+mapImg.onload = () => {
+  resetGame();
+  loop();
+};
+
+function restartGame() {
+  resetGame();
 }
