@@ -214,7 +214,6 @@ function update() {
     cart.y += cart.vy;
     cart.animTime += 0.15;
 
-    /* HARD FORCED TURN DOWN AT X >= 1016 */
     /* ===== HARD FORCED TURN DOWN AT X >= 1016 ===== */
 
     if (!cart.forcedDown && cart.x >= 1016) {
@@ -241,7 +240,47 @@ function handleIntersection(cart, name, x, y) {
 
   const dir = intersections[name];
 
-@@ -278,25 +284,109 @@ function drawCarts() {
+  if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
+  if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
+  if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
+  if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
+
+  cart[name] = true;
+}
+
+/* ================= DRAW ================= */
+
+function draw() {
+
+  ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
+  ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+  drawIntersectionArrows();
+  drawCarts();
+  drawHUD();
+}
+
+function drawCarts() {
+
+  for (let cart of activeCarts) {
+
+    let rotation = 0;
+
+    if (cart.vy > 0) rotation = 0;
+    else if (cart.vy < 0) rotation = Math.PI;
+    else if (cart.vx < 0) rotation = Math.PI / 2;
+    else if (cart.vx > 0) rotation = -Math.PI / 2;
+
+    const bob = Math.sin(cart.animTime) * 4;
+
+    ctx.save();
+    ctx.translate(cart.x, cart.y + bob);
+    ctx.rotate(rotation);
+    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
+    ctx.restore();
+  }
+}
 
 function drawIntersectionArrows() {
 
