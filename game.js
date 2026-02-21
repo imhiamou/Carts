@@ -53,8 +53,6 @@ const LEVEL = {
 
 let intersections;
 
-/* ================= INTERSECTION RULES ================= */
-
 const INTERSECTION_RULES = {
   intersection1: ["up", "right"],
   intersection2: ["left", "right"],
@@ -62,8 +60,6 @@ const INTERSECTION_RULES = {
   intersectionTurn: ["right", "down"],
   intersection4: ["left", "down"]
 };
-
-/* ================= GAME STATE ================= */
 
 let gameState;
 let score;
@@ -98,17 +94,32 @@ function unlockAudio() {
   audioUnlocked = true;
 }
 
-/* ================= CANVAS ================= */
+/* ================= RESPONSIVE ================= */
 
 function resize() {
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
   const widthRatio = canvas.width / WORLD_WIDTH;
   const heightRatio = canvas.height / WORLD_HEIGHT;
 
-  scaleX = Math.min(widthRatio, heightRatio);
-  scaleY = scaleX;
+  const isPhone = window.innerWidth <= 768;
+
+  if (isPhone) {
+
+    // Keep normal horizontal scaling
+    scaleX = Math.min(widthRatio, heightRatio);
+
+    // Stretch ONLY height
+    const HEIGHT_STRETCH = 1.4;
+    scaleY = scaleX * HEIGHT_STRETCH;
+
+  } else {
+
+    scaleX = Math.min(widthRatio, heightRatio);
+    scaleY = scaleX;
+  }
 
   offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
   offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2;
@@ -229,32 +240,6 @@ function handleIntersection(cart, name, x, y) {
   cart[name] = true;
 }
 
-/* ================= BUILDING CHECK ================= */
-
-function checkBuildings(cart) {
-
-  for (let key in LEVEL.buildings) {
-
-    const node = LEVEL.buildings[key];
-
-    if (Math.hypot(cart.x - node.x, cart.y - node.y) < 25) {
-
-      activeCarts = activeCarts.filter(c => c !== cart);
-
-      if (key === cart.destination) {
-        score += 100;
-        sounds[key].currentTime = 0;
-        sounds[key].play();
-      } else {
-        lives--;
-        sounds.wrong.currentTime = 0;
-        sounds.wrong.play();
-        if (lives <= 0) loseGame();
-      }
-    }
-  }
-}
-
 /* ================= DRAW ================= */
 
 function draw() {
@@ -314,7 +299,7 @@ function drawIntersectionArrows() {
   }
 }
 
-/* ================= INPUT ================= */
+/* ================= CLICK ================= */
 
 canvas.addEventListener("click", e => {
 
@@ -347,6 +332,32 @@ function drawHUD() {
   ctx.font = "28px Arial";
   ctx.fillText("Score: " + score, 40, 50);
   ctx.fillText("Lives: " + lives, 40, 85);
+}
+
+/* ================= BUILDINGS ================= */
+
+function checkBuildings(cart) {
+
+  for (let key in LEVEL.buildings) {
+
+    const node = LEVEL.buildings[key];
+
+    if (Math.hypot(cart.x - node.x, cart.y - node.y) < 25) {
+
+      activeCarts = activeCarts.filter(c => c !== cart);
+
+      if (key === cart.destination) {
+        score += 100;
+        sounds[key].currentTime = 0;
+        sounds[key].play();
+      } else {
+        lives--;
+        sounds.wrong.currentTime = 0;
+        sounds.wrong.play();
+        if (lives <= 0) loseGame();
+      }
+    }
+  }
 }
 
 /* ================= LOOP ================= */
