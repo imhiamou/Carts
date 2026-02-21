@@ -105,12 +105,12 @@ function resize() {
   const heightRatio = canvas.height / WORLD_HEIGHT;
 
   const isPhone = window.innerWidth <= 768;
-
+  const Y_SHIFT = 0;
   if (isPhone) {
 
     // Keep normal horizontal scaling
     scaleX = Math.min(widthRatio, heightRatio);
-
+     const Y_SHIFT = -150;
     // Stretch ONLY height
     const HEIGHT_STRETCH = 1.8;
     scaleY = scaleX * HEIGHT_STRETCH;
@@ -122,7 +122,7 @@ function resize() {
   }
 
   offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
-  offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2;
+  offsetY = ((canvas.height - WORLD_HEIGHT * scaleY) / 2)+Y_SHIFT;
 }
 
 window.addEventListener("resize", resize);
