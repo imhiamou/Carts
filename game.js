@@ -106,12 +106,10 @@ function resize() {
 
   const isPhone = window.innerWidth <= 768;
   const Y_SHIFT = -45;
+
   if (isPhone) {
 
-    // Keep normal horizontal scaling
     scaleX = Math.min(widthRatio, heightRatio);
-     
-    // Stretch ONLY height
     const HEIGHT_STRETCH = 1.9;
     scaleY = scaleX * HEIGHT_STRETCH;
 
@@ -122,7 +120,7 @@ function resize() {
   }
 
   offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
-  offsetY = ((canvas.height - WORLD_HEIGHT * scaleY) / 2)+Y_SHIFT;
+  offsetY = ((canvas.height - WORLD_HEIGHT * scaleY) / 2) + Y_SHIFT;
 }
 
 window.addEventListener("resize", resize);
@@ -190,7 +188,8 @@ function spawnCart() {
     speed: speed,
     destination: randomDest,
     img: CART_IMAGES[randomDest],
-    animTime: 0
+    animTime: 0,
+    forcedDown: false
   });
 
   sounds.spawn.currentTime = 0;
@@ -214,6 +213,15 @@ function update() {
     cart.x += cart.vx;
     cart.y += cart.vy;
     cart.animTime += 0.15;
+
+    /* ===== HARD FORCED TURN DOWN AT X >= 1016 ===== */
+
+    if (!cart.forcedDown && cart.x >= 1016) {
+      cart.x = 1016;
+      cart.vx = 0;
+      cart.vy = cart.speed;
+      cart.forcedDown = true;
+    }
 
     for (let key in LEVEL.intersections) {
       const node = LEVEL.intersections[key];
