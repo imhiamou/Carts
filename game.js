@@ -28,39 +28,68 @@ let scaleY = 1;
 let offsetX = 0;
 let offsetY = 0;
 
-/* ================= LEVEL DATA ================= */
+/* ================= LEVEL SYSTEM ================= */
 
-const LEVEL = {
+const LEVELS = {
 
-  spawn: { x: 322, y: 879 },
+  1: {
+    map: "map02.png",
 
-  intersections: {
-    intersection1: { x: 322, y: 560 },
-    intersection2: { x: 324, y: 345 },
-    intersection3: { x: 741, y: 344 },
-    intersectionTurn: { x: 1016, y: 339 },
-    intersection4: { x: 1020, y: 622 }
+    spawn: { x: 322, y: 879 },
+
+    intersections: {
+      intersection1: { x: 322, y: 560 },
+      intersection2: { x: 324, y: 345 },
+      intersection3: { x: 741, y: 344 },
+      intersection4: { x: 1020, y: 622 }
+    },
+
+    buildings: {
+      sawmill: { x: 531, y: 560 },
+      barn: { x: 174, y: 338 },
+      mine: { x: 749, y: 224 },
+      tavern: { x: 867, y: 627 },
+      windmill: { x: 1029, y: 758 }
+    }
   },
 
-  buildings: {
-    sawmill: { x: 531, y: 560 },
-    barn: { x: 174, y: 338 },
-    mine: { x: 749, y: 224 },
-    tavern: { x: 867, y: 627 },
-    windmill: { x: 1029, y: 758 }
+  2: {
+    map: "map03.png",
+
+    spawn: { x: 322, y: 879 },
+
+    intersections: {
+      intersection1: { x: 322, y: 560 },
+      intersection2: { x: 324, y: 345 },
+      intersection3: { x: 741, y: 344 },
+      intersection4: { x: 1020, y: 622 }
+    },
+
+    buildings: {
+      sawmill: { x: 531, y: 560 },
+      barn: { x: 174, y: 338 },
+      mine: { x: 749, y: 224 },
+      tavern: { x: 867, y: 627 },
+      windmill: { x: 1029, y: 758 }
+    }
   }
+
 };
 
-let intersections;
+let currentLevel = 1;
+let LEVEL;
+let mapImg;
+
+/* ================= INTERSECTION RULES ================= */
 
 const INTERSECTION_RULES = {
   intersection1: ["up", "right"],
   intersection2: ["left", "right"],
   intersection3: ["up", "right"],
-  intersectionTurn: ["right", "down"],
   intersection4: ["left", "down"]
 };
 
+let intersections;
 let gameState;
 let score;
 let lives;
@@ -81,19 +110,6 @@ const sounds = {
 
 Object.values(sounds).forEach(s => s.volume = 0.6);
 
-let audioUnlocked = false;
-
-function unlockAudio() {
-  if (audioUnlocked) return;
-  Object.values(sounds).forEach(s => {
-    s.play().then(() => {
-      s.pause();
-      s.currentTime = 0;
-    }).catch(() => {});
-  });
-  audioUnlocked = true;
-}
-
 /* ================= RESPONSIVE ================= */
 
 function resize() {
@@ -108,13 +124,10 @@ function resize() {
   const Y_SHIFT = -45;
 
   if (isPhone) {
-
     scaleX = Math.min(widthRatio, heightRatio);
     const HEIGHT_STRETCH = 1.9;
     scaleY = scaleX * HEIGHT_STRETCH;
-
   } else {
-
     scaleX = Math.min(widthRatio, heightRatio);
     scaleY = scaleX;
   }
@@ -126,28 +139,20 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-/* ================= LOAD ================= */
+/* ================= LEVEL LOADER ================= */
 
-function load(src) {
-  const img = new Image();
-  img.src = src;
-  return img;
+function loadLevel(levelNumber) {
+
+  currentLevel = levelNumber;
+  LEVEL = LEVELS[levelNumber];
+
+  mapImg = new Image();
+  mapImg.src = LEVEL.map;
+
+  mapImg.onload = () => {
+    resetGame();
+  };
 }
-
-const mapImg = load("map03.png");
-const arrowUpImg = load("arrow_up.png");
-const arrowLeftImg = load("arrow_left.png");
-const arrowRightImg = load("arrow_right.png");
-
-const CART_IMAGES = {
-  sawmill: load("sawmill_cart.png"),
-  mine: load("mine_cart.png"),
-  barn: load("barn_cart.png"),
-  tavern: load("tavern_cart.png"),
-  windmill: load("windmill_cart.png")
-};
-
-const DESTINATIONS = Object.keys(CART_IMAGES);
 
 /* ================= RESET ================= */
 
@@ -163,7 +168,6 @@ function resetGame() {
     intersection1: "up",
     intersection2: "left",
     intersection3: "up",
-    intersectionTurn: "right",
     intersection4: "left"
   };
 
@@ -174,8 +178,8 @@ function resetGame() {
 
 function spawnCart() {
 
-  const randomDest =
-    DESTINATIONS[Math.floor(Math.random() * DESTINATIONS.length)];
+  const destinations = Object.keys(LEVEL.buildings);
+  const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
 
   const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
   const speed = BASE_SPEED + speedBoost;
@@ -187,13 +191,12 @@ function spawnCart() {
     vy: -speed,
     speed: speed,
     destination: randomDest,
-    img: CART_IMAGES[randomDest],
+    img: new Image(),
     animTime: 0,
     forcedDown: false
   });
 
-  sounds.spawn.currentTime = 0;
-  sounds.spawn.play();
+  activeCarts[activeCarts.length - 1].img.src = randomDest + "_cart.png";
 }
 
 /* ================= UPDATE ================= */
@@ -214,13 +217,15 @@ function update() {
     cart.y += cart.vy;
     cart.animTime += 0.15;
 
-    /* ===== HARD FORCED TURN DOWN AT X >= 1016 ===== */
+    /* ONLY LEVEL 2 HAS FORCED TURN */
 
-    if (!cart.forcedDown && cart.x >= 1016) {
-      cart.x = 1016;
-      cart.vx = 0;
-      cart.vy = cart.speed;
-      cart.forcedDown = true;
+    if (currentLevel === 2) {
+      if (!cart.forcedDown && cart.x >= 1016) {
+        cart.x = 1016;
+        cart.vx = 0;
+        cart.vy = cart.speed;
+        cart.forcedDown = true;
+      }
     }
 
     for (let key in LEVEL.intersections) {
@@ -229,6 +234,12 @@ function update() {
     }
 
     checkBuildings(cart);
+  }
+
+  /* LEVEL SWITCH */
+
+  if (currentLevel === 1 && score >= 5000) {
+    loadLevel(2);
   }
 }
 
@@ -256,7 +267,6 @@ function draw() {
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-  drawIntersectionArrows();
   drawCarts();
   drawHUD();
 }
@@ -272,74 +282,12 @@ function drawCarts() {
     else if (cart.vx < 0) rotation = Math.PI / 2;
     else if (cart.vx > 0) rotation = -Math.PI / 2;
 
-    const bob = Math.sin(cart.animTime) * 4;
-
     ctx.save();
-    ctx.translate(cart.x, cart.y + bob);
+    ctx.translate(cart.x, cart.y);
     ctx.rotate(rotation);
     ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
     ctx.restore();
   }
-}
-
-function drawIntersectionArrows() {
-
-  for (let name in LEVEL.intersections) {
-
-    const node = LEVEL.intersections[name];
-    const state = intersections[name];
-
-    let img = arrowUpImg;
-    let rotation = 0;
-
-    if (state === "left") img = arrowLeftImg;
-    else if (state === "right") img = arrowRightImg;
-    else if (state === "down") {
-      img = arrowUpImg;
-      rotation = Math.PI;
-    }
-
-    ctx.save();
-    ctx.translate(node.x, node.y);
-    ctx.rotate(rotation);
-    ctx.drawImage(img, -ARROW_SIZE/2, -ARROW_SIZE/2, ARROW_SIZE, ARROW_SIZE);
-    ctx.restore();
-  }
-}
-
-/* ================= CLICK ================= */
-
-canvas.addEventListener("click", e => {
-
-  unlockAudio();
-  if (gameState !== "playing") return;
-
-  const rect = canvas.getBoundingClientRect();
-  const worldX = (e.clientX - rect.left - offsetX) / scaleX;
-  const worldY = (e.clientY - rect.top - offsetY) / scaleY;
-
-  for (let name in LEVEL.intersections) {
-
-    const node = LEVEL.intersections[name];
-
-    if (Math.hypot(worldX - node.x, worldY - node.y) < TAP_RADIUS) {
-
-      const allowed = INTERSECTION_RULES[name];
-      const current = intersections[name];
-      const index = allowed.indexOf(current);
-
-      intersections[name] = allowed[(index + 1) % allowed.length];
-    }
-  }
-});
-
-/* ================= HUD ================= */
-
-function drawHUD() {
-  ctx.fillStyle = "white";
-  ctx.font = "28px Arial";
-  ctx.fillText("Score: " + score, 40, 50);
-  ctx.fillText("Lives: " + lives, 40, 85);
 }
 
 /* ================= BUILDINGS ================= */
@@ -356,16 +304,22 @@ function checkBuildings(cart) {
 
       if (key === cart.destination) {
         score += 100;
-        sounds[key].currentTime = 0;
-        sounds[key].play();
       } else {
         lives--;
-        sounds.wrong.currentTime = 0;
-        sounds.wrong.play();
         if (lives <= 0) loseGame();
       }
     }
   }
+}
+
+/* ================= HUD ================= */
+
+function drawHUD() {
+  ctx.fillStyle = "white";
+  ctx.font = "28px Arial";
+  ctx.fillText("Level: " + currentLevel, 40, 40);
+  ctx.fillText("Score: " + score, 40, 75);
+  ctx.fillText("Lives: " + lives, 40, 110);
 }
 
 /* ================= LOOP ================= */
@@ -382,11 +336,13 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-mapImg.onload = () => {
-  resetGame();
-  loop();
-};
+function startGame() {
+  loadLevel(1);
+  requestAnimationFrame(loop);
+}
+
+startGame();
 
 function restartGame() {
-  resetGame();
+  loadLevel(currentLevel);
 }
