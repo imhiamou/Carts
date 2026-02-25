@@ -29,6 +29,18 @@ let spawnTimer;
 let activeCarts;
 let intersections;
 
+/* ================= LOAD IMAGES ================= */
+
+function load(src) {
+  const img = new Image();
+  img.src = src;
+  return img;
+}
+
+const arrowUpImg = load("arrow_up.png");
+const arrowLeftImg = load("arrow_left.png");
+const arrowRightImg = load("arrow_right.png");
+
 /* ================= MAP02 ================= */
 
 const MAP02 = {
@@ -108,12 +120,13 @@ function resetGame() {
   spawnTimer = 0;
   activeCarts = [];
 
-  intersections = {
-    intersection1: "up",
-    intersection2: "up",
-    intersection3: "up",
-    intersection4: "left"
-  };
+  intersections = {};
+
+  const map = currentLevel === 1 ? MAP02 : MAP03;
+
+  for (let key in map.intersections) {
+    intersections[key] = "up";
+  }
 
   ui.style.display = "none";
 }
@@ -126,9 +139,7 @@ function loadLevel(level) {
 
   mapImg.src = level === 1 ? MAP02.map : MAP03.map;
 
-  mapImg.onload = () => {
-    resetGame();
-  };
+  mapImg.onload = () => resetGame();
 }
 
 /* ================= SPAWN ================= */
@@ -150,12 +161,9 @@ function spawnCart() {
     vy: -speed,
     speed: speed,
     destination: randomDest,
-    img: new Image(),
+    img: load(randomDest + "_cart.png"),
     animTime: 0
   });
-
-  activeCarts[activeCarts.length - 1].img.src =
-    randomDest + "_cart.png";
 }
 
 /* ================= UPDATE ================= */
@@ -227,6 +235,74 @@ function checkBuildings(cart) {
   }
 }
 
+/* ================= DRAW ================= */
+
+function draw() {
+
+  ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
+
+  ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+  drawIntersectionArrows();
+  drawCarts();
+  drawHUD();
+}
+
+function drawIntersectionArrows() {
+
+  const map = currentLevel === 1 ? MAP02 : MAP03;
+
+  for (let key in map.intersections) {
+
+    const node = map.intersections[key];
+    const state = intersections[key];
+
+    let img = arrowUpImg;
+    let rotation = 0;
+
+    if (state === "left") img = arrowLeftImg;
+    if (state === "right") img = arrowRightImg;
+    if (state === "down") {
+      img = arrowUpImg;
+      rotation = Math.PI;
+    }
+
+    ctx.save();
+    ctx.translate(node.x, node.y);
+    ctx.rotate(rotation);
+    ctx.drawImage(img, -ARROW_SIZE/2, -ARROW_SIZE/2, ARROW_SIZE, ARROW_SIZE);
+    ctx.restore();
+  }
+}
+
+function drawCarts() {
+
+  for (let cart of activeCarts) {
+
+    let rotation = 0;
+
+    if (cart.vy > 0) rotation = 0;
+    else if (cart.vy < 0) rotation = Math.PI;
+    else if (cart.vx < 0) rotation = Math.PI / 2;
+    else if (cart.vx > 0) rotation = -Math.PI / 2;
+
+    ctx.save();
+    ctx.translate(cart.x, cart.y);
+    ctx.rotate(rotation);
+    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
+    ctx.restore();
+  }
+}
+
+function drawHUD() {
+  ctx.fillStyle = "white";
+  ctx.font = "28px Arial";
+  ctx.fillText("Level: " + currentLevel, 20, 40);
+  ctx.fillText("Score: " + score, 20, 75);
+  ctx.fillText("Lives: " + lives, 20, 110);
+}
+
 /* ================= INPUT ================= */
 
 canvas.addEventListener("click", e => {
@@ -255,38 +331,6 @@ canvas.addEventListener("click", e => {
     }
   }
 });
-
-/* ================= DRAW ================= */
-
-function draw() {
-
-  ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
-
-  ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-  for (let cart of activeCarts) {
-
-    let rotation = 0;
-
-    if (cart.vy > 0) rotation = 0;
-    else if (cart.vy < 0) rotation = Math.PI;
-    else if (cart.vx < 0) rotation = Math.PI / 2;
-    else if (cart.vx > 0) rotation = -Math.PI / 2;
-
-    ctx.save();
-    ctx.translate(cart.x, cart.y);
-    ctx.rotate(rotation);
-    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
-    ctx.restore();
-  }
-
-  ctx.fillStyle = "white";
-  ctx.font = "28px Arial";
-  ctx.fillText("Level: " + currentLevel, 20, 40);
-  ctx.fillText("Score: " + score, 20, 75);
-  ctx.fillText("Lives: " + lives, 20, 110);
-}
 
 /* ================= LOOP ================= */
 
