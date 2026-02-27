@@ -160,8 +160,13 @@ function resize() {
   const widthRatio = w / WORLD_WIDTH;
   const heightRatio = h / WORLD_HEIGHT;
 
-  scaleX = Math.min(widthRatio, heightRatio);
-  scaleY = scaleX;
+  if (isPhone()) {
+    scaleX = Math.max(widthRatio, heightRatio);
+    scaleY = scaleX;
+  } else {
+    scaleX = Math.min(widthRatio, heightRatio);
+    scaleY = scaleX;
+  }
 
   offsetX = (w - WORLD_WIDTH * scaleX) / 2;
   offsetY = (h - WORLD_HEIGHT * scaleY) / 2;
