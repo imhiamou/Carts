@@ -145,19 +145,26 @@ let scaleX = 1;
 let scaleY = 1;
 let offsetX = 0;
 let offsetY = 0;
+let dpr = 1;
 
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
 
-  const widthRatio = canvas.width / WORLD_WIDTH;
-  const heightRatio = canvas.height / WORLD_HEIGHT;
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+
+  const widthRatio = w / WORLD_WIDTH;
+  const heightRatio = h / WORLD_HEIGHT;
 
   scaleX = Math.min(widthRatio, heightRatio);
   scaleY = scaleX;
 
-  offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
-  offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2;
+  offsetX = (w - WORLD_WIDTH * scaleX) / 2;
+  offsetY = (h - WORLD_HEIGHT * scaleY) / 2;
 }
 
 window.addEventListener("resize", resize);
@@ -373,7 +380,8 @@ canvas.addEventListener("touchend", e => {
 
 function draw() {
 
-  ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
+  ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(scaleX * dpr, 0, 0, scaleY * dpr, offsetX * dpr, offsetY * dpr);
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
