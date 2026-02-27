@@ -424,6 +424,11 @@ function loseGame() {
   ui.style.display = "block";
 }
 
+function restartGame() {
+  ui.style.display = "none";
+  resetGame();
+}
+
 function loop() {
   update();
   draw();
