@@ -250,7 +250,8 @@ function update() {
       const node = map.intersections[key];
       const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
 
-      const hitRadius = currentLevel === 1 ? 8 : 14;
+      let hitRadius = currentLevel === 1 ? 8 : 14;
+      if (currentLevel === 2 && key === "intersection2") hitRadius = 8;
       if (dist < hitRadius && !cart[key]) {
 
         const dir = intersections[key];
