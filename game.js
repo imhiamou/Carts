@@ -1,4 +1,4 @@
-* ================= CANVAS ================= */
+/* ================= CANVAS ================= */
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -250,16 +250,8 @@ function update() {
       const node = map.intersections[key];
       const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
 
-      // Level 1: original tight radius (8) that already looked good.
-      // Level 2: a bit larger so fast carts still reliably hit,
-      // with a small extra boost on intersection3 which is easy to miss.
-      const baseRadius = currentLevel === 1 ? 8 : 14;
-      const radius =
-        currentLevel === 2 && key === "intersection3"
-          ? 20
-          : baseRadius;
-
-      if (dist < radius && !cart[key]) {
+      const hitRadius = currentLevel === 1 ? 8 : 14;
+      if (dist < hitRadius && !cart[key]) {
 
         const dir = intersections[key];
 
