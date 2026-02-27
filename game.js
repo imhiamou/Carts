@@ -27,7 +27,7 @@ let score;
 let lives;
 let spawnTimer;
 let activeCarts;
-let intersections;
+let intersections = {};
 
 /* ================= LOAD IMAGES ================= */
 
