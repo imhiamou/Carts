@@ -250,7 +250,9 @@ function update() {
       const node = map.intersections[key];
       const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
 
-      if (dist < 8 && !cart[key]) {
+      // Use a slightly larger radius so fast carts
+      // on level 2 still reliably "hit" the node.
+      if (dist < 20 && !cart[key]) {
 
         const dir = intersections[key];
 
