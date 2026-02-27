@@ -231,18 +231,16 @@ function update() {
     cart.x += cart.vx;
     cart.y += cart.vy;
 
-    /* ===== HARD TURN AT X1016 Y≈339 ===== */
+    /* ===== HARD TURN AT X1016 (ALWAYS DOWN) ===== */
 
-    if (currentLevel === 2) {
-      if (!cart.forcedDown &&
-          cart.x >= 1016 &&
-          cart.y <= 350 && cart.y >= 300) {
+    if (currentLevel === 2 &&
+        !cart.forcedDown &&
+        cart.x >= 1016) {
 
-        cart.x = 1016;
-        cart.vx = 0;
-        cart.vy = cart.speed;
-        cart.forcedDown = true;
-      }
+      cart.x = 1016;
+      cart.vx = 0;
+      cart.vy = cart.speed;
+      cart.forcedDown = true;
     }
 
     /* ===== INTERSECTIONS ===== */
