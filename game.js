@@ -11,6 +11,23 @@ const resultText = document.getElementById("result");
 const WORLD_WIDTH = 1200;
 const WORLD_HEIGHT = 900;
 
+/* ================= PHONE WORLD ================= */
+
+const isPhone = window.matchMedia("(max-width: 768px)").matches;
+
+const PHONE_WORLD_WIDTH = 900;
+const PHONE_WORLD_HEIGHT = 1800;
+
+const X_SCALE_PHONE = PHONE_WORLD_WIDTH / WORLD_WIDTH;   // 0.75
+const Y_SCALE_PHONE = PHONE_WORLD_HEIGHT / WORLD_HEIGHT; // 2.0
+
+function phoneTransform(value, axis) {
+  if (!isPhone) return value;
+  return axis === "x"
+    ? value * X_SCALE_PHONE
+    : value * Y_SCALE_PHONE;
+}
+
 /* ================= SIZE ================= */
 
 const CART_SIZE = 170;
@@ -64,8 +81,6 @@ const sounds = {
   windmill: loadSound("windmill.mp3")
 };
 
-/* ===== UNLOCK AUDIO (CRITICAL FOR BROWSERS) ===== */
-
 canvas.addEventListener("click", () => {
   Object.values(sounds).forEach(s => {
     s.play().then(() => {
@@ -75,17 +90,15 @@ canvas.addEventListener("click", () => {
   });
 }, { once: true });
 
-/* ================= MAP02 ================= */
+/* ================= MAPS ================= */
 
 const MAP02 = {
   map: "map02.png",
   spawn: { x: 599, y: 846 },
-
   intersections: {
     intersection1: { x: 604, y: 567 },
     intersection2: { x: 600, y: 330 }
   },
-
   buildings: {
     sawmill: { x: 598, y: 218 },
     mine: { x: 351, y: 320 },
@@ -95,19 +108,15 @@ const MAP02 = {
   }
 };
 
-/* ================= MAP03 ================= */
-
 const MAP03 = {
   map: "map03.png",
   spawn: { x: 322, y: 879 },
-
   intersections: {
     intersection1: { x: 322, y: 560 },
     intersection2: { x: 324, y: 345 },
     intersection3: { x: 741, y: 344 },
     intersection4: { x: 1020, y: 622 }
   },
-
   buildings: {
     sawmill: { x: 531, y: 560 },
     barn: { x: 174, y: 338 },
@@ -117,7 +126,7 @@ const MAP03 = {
   }
 };
 
-/* ================= LEVEL STATE ================= */
+/* ================= STATE ================= */
 
 let currentLevel = 1;
 let mapImg = new Image();
@@ -136,32 +145,35 @@ let offsetX = 0;
 let offsetY = 0;
 
 function resize() {
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
-  const widthRatio = canvas.width / WORLD_WIDTH;
-  const heightRatio = canvas.height / WORLD_HEIGHT;
+  const worldW = isPhone ? PHONE_WORLD_WIDTH : WORLD_WIDTH;
+  const worldH = isPhone ? PHONE_WORLD_HEIGHT : WORLD_HEIGHT;
 
-  scaleX = Math.min(widthRatio, heightRatio);
-  scaleY = scaleX;
+  const widthRatio = canvas.width / worldW;
+  const heightRatio = canvas.height / worldH;
 
-  offsetX = (canvas.width - WORLD_WIDTH * scaleX) / 2;
-  offsetY = (canvas.height - WORLD_HEIGHT * scaleY) / 2;
+  const scale = Math.min(widthRatio, heightRatio);
+
+  scaleX = scale;
+  scaleY = scale;
+
+  offsetX = (canvas.width - worldW * scale) / 2;
+  offsetY = (canvas.height - worldH * scale) / 2;
 }
 
 window.addEventListener("resize", resize);
 resize();
 
-/* ================= LEVEL LOAD ================= */
+/* ================= LEVEL ================= */
 
 function loadLevel(level) {
   currentLevel = level;
   mapImg.src = level === 1 ? MAP02.map : MAP03.map;
-
-  mapImg.onload = () => resetGame();
+  mapImg.onload = resetGame;
 }
-
-/* ================= RESET ================= */
 
 function resetGame() {
   score = 0;
@@ -169,17 +181,16 @@ function resetGame() {
   spawnTimer = 0;
   activeCarts = [];
   gameState = "playing";
-
   intersections = {};
 
   if (currentLevel === 1) {
     intersections.intersection1 = "up";
     intersections.intersection2 = "up";
   } else {
-    intersections.intersection1 = "up";    // up/right only
-    intersections.intersection2 = "left";  // left/right only
-    intersections.intersection3 = "up";    // up/right only
-    intersections.intersection4 = "left";  // left/down only
+    intersections.intersection1 = "up";
+    intersections.intersection2 = "left";
+    intersections.intersection3 = "up";
+    intersections.intersection4 = "left";
   }
 
   ui.style.display = "none";
@@ -198,8 +209,8 @@ function spawnCart() {
   const speed = BASE_SPEED + speedBoost;
 
   activeCarts.push({
-    x: map.spawn.x,
-    y: map.spawn.y,
+    x: phoneTransform(map.spawn.x, "x"),
+    y: phoneTransform(map.spawn.y, "y"),
     vx: 0,
     vy: -speed,
     speed: speed,
@@ -231,28 +242,26 @@ function update() {
     cart.x += cart.vx;
     cart.y += cart.vy;
 
-    /* ===== HARD TURN AT X1016 (ALWAYS DOWN) ===== */
-
     if (currentLevel === 2 &&
         !cart.forcedDown &&
-        cart.x >= 1016) {
+        cart.x >= phoneTransform(1016, "x")) {
 
-      cart.x = 1016;
+      cart.x = phoneTransform(1016, "x");
       cart.vx = 0;
       cart.vy = cart.speed;
       cart.forcedDown = true;
     }
 
-    /* ===== INTERSECTIONS ===== */
-
     for (let key in map.intersections) {
 
-      const node = map.intersections[key];
+      const node = {
+        x: phoneTransform(map.intersections[key].x, "x"),
+        y: phoneTransform(map.intersections[key].y, "y")
+      };
+
       const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
 
-      let hitRadius = currentLevel === 1 ? 8 : 14;
-      if (currentLevel === 2 && key === "intersection2") hitRadius = 8;
-      if (dist < hitRadius && !cart[key]) {
+      if (dist < 12 && !cart[key]) {
 
         const dir = intersections[key];
 
@@ -281,7 +290,10 @@ function checkBuildings(cart) {
 
   for (let key in map.buildings) {
 
-    const node = map.buildings[key];
+    const node = {
+      x: phoneTransform(map.buildings[key].x, "x"),
+      y: phoneTransform(map.buildings[key].y, "y")
+    };
 
     if (Math.hypot(cart.x - node.x, cart.y - node.y) < 20) {
 
@@ -301,61 +313,16 @@ function checkBuildings(cart) {
   }
 }
 
-/* ================= INPUT ================= */
-
-canvas.addEventListener("click", e => {
-
-  if (gameState !== "playing") return;
-
-  const rect = canvas.getBoundingClientRect();
-  const worldX = (e.clientX - rect.left - offsetX) / scaleX;
-  const worldY = (e.clientY - rect.top - offsetY) / scaleY;
-
-  const map = currentLevel === 1 ? MAP02 : MAP03;
-
-  for (let key in map.intersections) {
-
-    const node = map.intersections[key];
-    const dist = Math.hypot(worldX - node.x, worldY - node.y);
-
-    if (dist < TAP_RADIUS) {
-
-      if (currentLevel === 2) {
-
-        if (key === "intersection1")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
-        if (key === "intersection2")
-          intersections[key] =
-            intersections[key] === "left" ? "right" : "left";
-
-        if (key === "intersection3")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
-        if (key === "intersection4")
-          intersections[key] =
-            intersections[key] === "left" ? "down" : "left";
-
-      } else {
-
-        intersections[key] =
-          intersections[key] === "up" ? "left" :
-          intersections[key] === "left" ? "right" :
-          "up";
-      }
-    }
-  }
-});
-
 /* ================= DRAW ================= */
 
 function draw() {
 
+  const worldW = isPhone ? PHONE_WORLD_WIDTH : WORLD_WIDTH;
+  const worldH = isPhone ? PHONE_WORLD_HEIGHT : WORLD_HEIGHT;
+
   ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
-  ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  ctx.clearRect(0, 0, worldW, worldH);
+  ctx.drawImage(mapImg, 0, 0, worldW, worldH);
 
   drawArrows();
   drawCarts();
@@ -368,7 +335,11 @@ function drawArrows() {
 
   for (let key in map.intersections) {
 
-    const node = map.intersections[key];
+    const node = {
+      x: phoneTransform(map.intersections[key].x, "x"),
+      y: phoneTransform(map.intersections[key].y, "y")
+    };
+
     const state = intersections[key];
 
     let img = arrowUpImg;
