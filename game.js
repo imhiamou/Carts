@@ -268,7 +268,7 @@ function update() {
     checkBuildings(cart);
   }
 
-  if (currentLevel === 1 && score >= 5000) {
+  if (currentLevel === 1 && score >= 100) {
     loadLevel(2);
   }
 }
