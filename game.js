@@ -250,9 +250,16 @@ function update() {
       const node = map.intersections[key];
       const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
 
-      // Small radius so the visual turn happens
-      // right on top of the intersection artwork.
-      if (dist < 12 && !cart[key]) {
+      // Level 1: original tight radius (8) that already looked good.
+      // Level 2: a bit larger so fast carts still reliably hit,
+      // with a small extra boost on intersection3 which is easy to miss.
+      const baseRadius = currentLevel === 1 ? 8 : 14;
+      const radius =
+        currentLevel === 2 && key === "intersection3"
+          ? 20
+          : baseRadius;
+
+      if (dist < radius && !cart[key]) {
 
         const dir = intersections[key];
 
