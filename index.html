@@ -2,12 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Medieval Pixel Cart</title>
-<link rel="icon" href="data:,">
 <style>
-body { margin:0; background:#2c5e2c; overflow:hidden; }
-canvas { display:block; width:100vw; height:100vh; image-rendering: pixelated; }
+body { margin:0; background:#2c5e2c; overflow:hidden; touch-action: manipulation; }
+canvas { display:block; width:100vw; height:100vh; image-rendering: pixelated; touch-action: manipulation; }
 #ui {
   position:absolute;
   top:40%;
@@ -17,7 +16,7 @@ canvas { display:block; width:100vw; height:100vh; image-rendering: pixelated; }
   font-size:28px;
   display:none;
 }
-button { font-size:20px; padding:10px 20px; }
+button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manipulation; }
 </style>
 </head>
 <body>
@@ -30,3 +29,4 @@ button { font-size:20px; padding:10px 20px; }
 
 <script src="game.js"></script>
 </body>
+</html>
