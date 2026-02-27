@@ -1,3 +1,5 @@
+/* ================= CANVAS ================= */
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -21,25 +23,57 @@ const BASE_SPEED = 2.0;
 const SPEED_INCREMENT = 0.15;
 const SPAWN_DELAY = 200;
 
-let currentLevel = 1;
-let gameState;
-let score;
-let lives;
-let spawnTimer;
-let activeCarts;
-let intersections = {};
+/* ================= LOADERS ================= */
 
-/* ================= LOAD IMAGES ================= */
-
-function load(src) {
+function loadImage(src) {
   const img = new Image();
   img.src = src;
   return img;
 }
 
-const arrowUpImg = load("arrow_up.png");
-const arrowLeftImg = load("arrow_left.png");
-const arrowRightImg = load("arrow_right.png");
+function loadSound(src) {
+  const audio = new Audio(src);
+  audio.preload = "auto";
+  audio.volume = 0.6;
+  return audio;
+}
+
+/* ================= IMAGES ================= */
+
+const arrowUpImg = loadImage("arrow_up.png");
+const arrowLeftImg = loadImage("arrow_left.png");
+const arrowRightImg = loadImage("arrow_right.png");
+
+const CART_IMAGES = {
+  sawmill: loadImage("sawmill_cart.png"),
+  mine: loadImage("mine_cart.png"),
+  barn: loadImage("barn_cart.png"),
+  tavern: loadImage("tavern_cart.png"),
+  windmill: loadImage("windmill_cart.png")
+};
+
+/* ================= SOUNDS ================= */
+
+const sounds = {
+  spawn: loadSound("cart.mp3"),
+  wrong: loadSound("Wrong.mp3"),
+  sawmill: loadSound("sawmill.mp3"),
+  mine: loadSound("mine.mp3"),
+  barn: loadSound("barn.mp3"),
+  tavern: loadSound("tavern.mp3"),
+  windmill: loadSound("windmill.mp3")
+};
+
+/* ===== UNLOCK AUDIO (CRITICAL FOR BROWSERS) ===== */
+
+canvas.addEventListener("click", () => {
+  Object.values(sounds).forEach(s => {
+    s.play().then(() => {
+      s.pause();
+      s.currentTime = 0;
+    }).catch(() => {});
+  });
+}, { once: true });
 
 /* ================= MAP02 ================= */
 
@@ -83,7 +117,16 @@ const MAP03 = {
   }
 };
 
+/* ================= LEVEL STATE ================= */
+
+let currentLevel = 1;
 let mapImg = new Image();
+let intersections = {};
+let activeCarts = [];
+let score = 0;
+let lives = 3;
+let spawnTimer = 0;
+let gameState = "playing";
 
 /* ================= RESPONSIVE ================= */
 
@@ -93,7 +136,6 @@ let offsetX = 0;
 let offsetY = 0;
 
 function resize() {
-
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
@@ -110,36 +152,37 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
+/* ================= LEVEL LOAD ================= */
+
+function loadLevel(level) {
+  currentLevel = level;
+  mapImg.src = level === 1 ? MAP02.map : MAP03.map;
+
+  mapImg.onload = () => resetGame();
+}
+
 /* ================= RESET ================= */
 
 function resetGame() {
-
-  gameState = "playing";
   score = 0;
   lives = 3;
   spawnTimer = 0;
   activeCarts = [];
+  gameState = "playing";
 
   intersections = {};
 
-  const map = currentLevel === 1 ? MAP02 : MAP03;
-
-  for (let key in map.intersections) {
-    intersections[key] = "up";
+  if (currentLevel === 1) {
+    intersections.intersection1 = "up";
+    intersections.intersection2 = "up";
+  } else {
+    intersections.intersection1 = "up";    // up/right only
+    intersections.intersection2 = "left";  // left/right only
+    intersections.intersection3 = "up";    // up/right only
+    intersections.intersection4 = "left";  // left/down only
   }
 
   ui.style.display = "none";
-}
-
-/* ================= LEVEL LOAD ================= */
-
-function loadLevel(level) {
-
-  currentLevel = level;
-
-  mapImg.src = level === 1 ? MAP02.map : MAP03.map;
-
-  mapImg.onload = () => resetGame();
 }
 
 /* ================= SPAWN ================= */
@@ -161,9 +204,12 @@ function spawnCart() {
     vy: -speed,
     speed: speed,
     destination: randomDest,
-    img: load(randomDest + "_cart.png"),
-    animTime: 0
+    img: CART_IMAGES[randomDest],
+    forcedDown: false
   });
+
+  sounds.spawn.currentTime = 0;
+  sounds.spawn.play();
 }
 
 /* ================= UPDATE ================= */
@@ -184,6 +230,22 @@ function update() {
 
     cart.x += cart.vx;
     cart.y += cart.vy;
+
+    /* ===== HARD TURN AT X1016 Y≈339 ===== */
+
+    if (currentLevel === 2) {
+      if (!cart.forcedDown &&
+          cart.x >= 1016 &&
+          cart.y <= 350 && cart.y >= 300) {
+
+        cart.x = 1016;
+        cart.vx = 0;
+        cart.vy = cart.speed;
+        cart.forcedDown = true;
+      }
+    }
+
+    /* ===== INTERSECTIONS ===== */
 
     for (let key in map.intersections) {
 
@@ -227,29 +289,80 @@ function checkBuildings(cart) {
 
       if (key === cart.destination) {
         score += 100;
+        sounds[key].currentTime = 0;
+        sounds[key].play();
       } else {
         lives--;
+        sounds.wrong.currentTime = 0;
+        sounds.wrong.play();
         if (lives <= 0) loseGame();
       }
     }
   }
 }
 
+/* ================= INPUT ================= */
+
+canvas.addEventListener("click", e => {
+
+  if (gameState !== "playing") return;
+
+  const rect = canvas.getBoundingClientRect();
+  const worldX = (e.clientX - rect.left - offsetX) / scaleX;
+  const worldY = (e.clientY - rect.top - offsetY) / scaleY;
+
+  const map = currentLevel === 1 ? MAP02 : MAP03;
+
+  for (let key in map.intersections) {
+
+    const node = map.intersections[key];
+    const dist = Math.hypot(worldX - node.x, worldY - node.y);
+
+    if (dist < TAP_RADIUS) {
+
+      if (currentLevel === 2) {
+
+        if (key === "intersection1")
+          intersections[key] =
+            intersections[key] === "up" ? "right" : "up";
+
+        if (key === "intersection2")
+          intersections[key] =
+            intersections[key] === "left" ? "right" : "left";
+
+        if (key === "intersection3")
+          intersections[key] =
+            intersections[key] === "up" ? "right" : "up";
+
+        if (key === "intersection4")
+          intersections[key] =
+            intersections[key] === "left" ? "down" : "left";
+
+      } else {
+
+        intersections[key] =
+          intersections[key] === "up" ? "left" :
+          intersections[key] === "left" ? "right" :
+          "up";
+      }
+    }
+  }
+});
+
 /* ================= DRAW ================= */
 
 function draw() {
 
   ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
-
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-  drawIntersectionArrows();
+  drawArrows();
   drawCarts();
   drawHUD();
 }
 
-function drawIntersectionArrows() {
+function drawArrows() {
 
   const map = currentLevel === 1 ? MAP02 : MAP03;
 
@@ -303,35 +416,6 @@ function drawHUD() {
   ctx.fillText("Lives: " + lives, 20, 110);
 }
 
-/* ================= INPUT ================= */
-
-canvas.addEventListener("click", e => {
-
-  if (gameState !== "playing") return;
-
-  const rect = canvas.getBoundingClientRect();
-  const worldX = (e.clientX - rect.left - offsetX) / scaleX;
-  const worldY = (e.clientY - rect.top - offsetY) / scaleY;
-
-  const map = currentLevel === 1 ? MAP02 : MAP03;
-
-  for (let key in map.intersections) {
-
-    const node = map.intersections[key];
-    const dist = Math.hypot(worldX - node.x, worldY - node.y);
-
-    if (dist < TAP_RADIUS) {
-
-      const current = intersections[key];
-
-      intersections[key] =
-        current === "up" ? "left" :
-        current === "left" ? "right" :
-        "up";
-    }
-  }
-});
-
 /* ================= LOOP ================= */
 
 function loseGame() {
@@ -348,7 +432,3 @@ function loop() {
 
 loadLevel(1);
 requestAnimationFrame(loop);
-
-function restartGame() {
-  loadLevel(currentLevel);
-}
