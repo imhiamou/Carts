@@ -21,6 +21,11 @@ function isPhone() {
   return window.matchMedia("(max-width: 768px)").matches;
 }
 
+function usePhoneMap() {
+  if (window.matchMedia("(max-width: 768px)").matches) return true;
+  return "ontouchstart" in window && (window.innerWidth <= 1024 || screen.width <= 1024);
+}
+
 function getTapRadius() {
   return isPhone() ? 110 : TAP_RADIUS;
 }
@@ -173,14 +178,15 @@ function resize() {
   offsetY = (h - WORLD_HEIGHT * scaleY) / 2;
 }
 
-let lastPhone = isPhone();
+let lastPhone = usePhoneMap();
 
 window.addEventListener("resize", () => {
   resize();
-  if (isPhone() !== lastPhone) {
-    lastPhone = isPhone();
+  const nowPhone = usePhoneMap();
+  if (nowPhone !== lastPhone) {
+    lastPhone = nowPhone;
     const map = currentLevel === 1 ? MAP02 : MAP03;
-    mapImg.src = isPhone() && map.mapPhone ? map.mapPhone : map.map;
+    mapImg.src = nowPhone && map.mapPhone ? map.mapPhone : map.map;
   }
 });
 resize();
@@ -190,7 +196,7 @@ resize();
 function loadLevel(level) {
   currentLevel = level;
   const map = level === 1 ? MAP02 : MAP03;
-  mapImg.src = isPhone() && map.mapPhone ? map.mapPhone : map.map;
+  mapImg.src = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
 
   mapImg.onload = () => resetGame();
 }
@@ -498,6 +504,4 @@ function loop() {
 loadLevel(1);
 requestAnimationFrame(loop);
 
-window.addEventListener("load", () => {
-  loadLevel(currentLevel);
-});
+window.addEventListener("load", () => { loadLevel(currentLevel); });
