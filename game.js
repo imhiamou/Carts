@@ -141,23 +141,23 @@ const MAP03 = {
 
 const MAP04 = {
   map: "map04.png",
-  spawn: { x: 12, y: 483 },
+  spawn: { x: 20, y: 533 },
 
   intersections: {
-    intersection1: { x: 335, y: 483 },
-    intersection2: { x: 335, y: 250 },
-    intersection3: { x: 678, y: 250 },
-    intersection4: { x: 339, y: 610 },
-    intersection5: { x: 501, y: 609 }
+    intersection1: { x: 411, y: 531 },
+    intersection2: { x: 407, y: 275 },
+    intersection3: { x: 826, y: 275 },
+    intersection4: { x: 414, y: 671 },
+    intersection5: { x: 607, y: 674 }
   },
 
   buildings: {
-    mine: { x: 228, y: 251 },
-    castle: { x: 748, y: 250 },
-    barn: { x: 679, y: 435 },
-    tavern: { x: 333, y: 711 },
-    windmill: { x: 666, y: 610 },
-    sawmill: { x: 497, y: 421 }
+    mine: { x: 277, y: 275 },
+    castle: { x: 918, y: 276 },
+    barn: { x: 826, y: 494 },
+    tavern: { x: 412, y: 794 },
+    windmill: { x: 814, y: 671 },
+    sawmill: { x: 607, y: 461 }
   }
 };
 
