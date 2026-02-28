@@ -90,6 +90,7 @@ canvas.addEventListener("touchend", unlockAudio, { once: true, passive: true });
 
 const MAP02 = {
   map: "map02.png",
+  mapPhone: "map02_phone.png",
   spawn: { x: 599, y: 846 },
 
   intersections: {
@@ -110,6 +111,7 @@ const MAP02 = {
 
 const MAP03 = {
   map: "map03.png",
+  mapPhone: "map03_phone.png",
   spawn: { x: 322, y: 879 },
 
   intersections: {
@@ -170,14 +172,24 @@ function resize() {
   offsetY = (h - WORLD_HEIGHT * scaleY) / 2;
 }
 
-window.addEventListener("resize", resize);
+let lastPhone = isPhone();
+
+window.addEventListener("resize", () => {
+  resize();
+  if (isPhone() !== lastPhone) {
+    lastPhone = isPhone();
+    const map = currentLevel === 1 ? MAP02 : MAP03;
+    mapImg.src = isPhone() && map.mapPhone ? map.mapPhone : map.map;
+  }
+});
 resize();
 
 /* ================= LEVEL LOAD ================= */
 
 function loadLevel(level) {
   currentLevel = level;
-  mapImg.src = level === 1 ? MAP02.map : MAP03.map;
+  const map = level === 1 ? MAP02 : MAP03;
+  mapImg.src = isPhone() && map.mapPhone ? map.mapPhone : map.map;
 
   mapImg.onload = () => resetGame();
 }
