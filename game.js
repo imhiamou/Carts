@@ -17,26 +17,17 @@ const CART_SIZE = 170;
 const ARROW_SIZE = 80;
 const TAP_RADIUS = 80;
 
-function isPhone() {
-  return window.matchMedia("(max-width: 768px)").matches;
-}
-
-function usePhoneMap() {
-  if (window.matchMedia("(max-width: 768px)").matches) return true;
-  return "ontouchstart" in window && (window.innerWidth <= 1024 || screen.width <= 1024);
-}
-
-function getTapRadius() {
-  return isPhone() ? 110 : TAP_RADIUS;
-}
-
-/* ================= GAME ================= */
+/* ================= GAME TUNING ================= */
 
 const BASE_SPEED = 2.0;
 const SPEED_INCREMENT = 0.15;
 const SPAWN_DELAY = 200;
 
-/* ================= LOADERS ================= */
+/* ================= HELPERS ================= */
+
+function isPhone() {
+  return window.matchMedia("(max-width:768px)").matches;
+}
 
 function loadImage(src) {
   const img = new Image();
@@ -62,7 +53,8 @@ const CART_IMAGES = {
   mine: loadImage("mine_cart.png"),
   barn: loadImage("barn_cart.png"),
   tavern: loadImage("tavern_cart.png"),
-  windmill: loadImage("windmill_cart.png")
+  windmill: loadImage("windmill_cart.png"),
+  princess: loadImage("princess_cart.png")
 };
 
 /* ================= SOUNDS ================= */
@@ -74,10 +66,9 @@ const sounds = {
   mine: loadSound("mine.mp3"),
   barn: loadSound("barn.mp3"),
   tavern: loadSound("tavern.mp3"),
-  windmill: loadSound("windmill.mp3")
+  windmill: loadSound("windmill.mp3"),
+  castle: loadSound("castle.mp3")
 };
-
-/* ===== UNLOCK AUDIO (CRITICAL FOR BROWSERS) ===== */
 
 function unlockAudio() {
   Object.values(sounds).forEach(s => {
@@ -88,282 +79,232 @@ function unlockAudio() {
   });
 }
 
-canvas.addEventListener("click", unlockAudio, { once: true });
-canvas.addEventListener("touchend", unlockAudio, { once: true, passive: true });
+canvas.addEventListener("click", unlockAudio, { once:true });
+canvas.addEventListener("touchend", unlockAudio, { once:true });
 
-/* ================= MAP02 ================= */
+/* ================= MAPS ================= */
 
 const MAP02 = {
   map: "map02.png",
   mapPhone: "map02_phone.png",
-  spawn: { x: 599, y: 846 },
-
+  spawn: { x:599, y:846 },
   intersections: {
-    intersection1: { x: 604, y: 567 },
-    intersection2: { x: 600, y: 330 }
+    intersection1:{ x:604, y:567 },
+    intersection2:{ x:600, y:330 }
   },
-
-  buildings: {
-    sawmill: { x: 598, y: 218 },
-    mine: { x: 351, y: 320 },
-    barn: { x: 783, y: 320 },
-    tavern: { x: 384, y: 571 },
-    windmill: { x: 833, y: 564 }
+  buildings:{
+    sawmill:{ x:598,y:218 },
+    mine:{ x:351,y:320 },
+    barn:{ x:783,y:320 },
+    tavern:{ x:384,y:571 },
+    windmill:{ x:833,y:564 }
   }
 };
-
-/* ================= MAP03 ================= */
 
 const MAP03 = {
-  map: "map03.png",
-  mapPhone: "map03_phone.png",
-  spawn: { x: 322, y: 879 },
-
-  intersections: {
-    intersection1: { x: 322, y: 560 },
-    intersection2: { x: 324, y: 345 },
-    intersection3: { x: 741, y: 344 },
-    intersection4: { x: 1020, y: 622 }
+  map:"map03.png",
+  mapPhone:"map03_phone.png",
+  spawn:{ x:322,y:879 },
+  intersections:{
+    intersection1:{ x:322,y:560 },
+    intersection2:{ x:324,y:345 },
+    intersection3:{ x:741,y:344 },
+    intersection4:{ x:1020,y:622 }
   },
-
-  buildings: {
-    sawmill: { x: 531, y: 560 },
-    barn: { x: 174, y: 338 },
-    mine: { x: 749, y: 224 },
-    tavern: { x: 867, y: 627 },
-    windmill: { x: 1029, y: 758 }
+  buildings:{
+    sawmill:{ x:531,y:560 },
+    barn:{ x:174,y:338 },
+    mine:{ x:749,y:224 },
+    tavern:{ x:867,y:627 },
+    windmill:{ x:1029,y:758 }
   }
 };
 
-/* ================= LEVEL STATE ================= */
+const MAP04 = {
+  map:"map04.png",
+  mapPhone:"map04_phone.png",
+  spawn:{ x:12,y:483 },
+  intersections:{
+    intersection1:{ x:335,y:483 },
+    intersection2:{ x:335,y:250 },
+    intersection3:{ x:678,y:250 },
+    intersection4:{ x:339,y:610 },
+    intersection5:{ x:501,y:609 }
+  },
+  buildings:{
+    mine:{ x:228,y:251 },
+    castle:{ x:748,y:250 },
+    barn:{ x:679,y:435 },
+    tavern:{ x:333,y:711 },
+    windmill:{ x:666,y:610 },
+    sawmill:{ x:497,y:421 }
+  }
+};
 
-let currentLevel = 1;
-let mapImg = new Image();
-let intersections = {};
-let activeCarts = [];
-let score = 0;
-let lives = 3;
-let spawnTimer = 0;
-let gameState = "playing";
+function getMap(){
+  if(currentLevel===1) return MAP02;
+  if(currentLevel===2) return MAP03;
+  return MAP04;
+}
+
+/* ================= STATE ================= */
+
+let currentLevel=1;
+let mapImg=new Image();
+let intersections={};
+let activeCarts=[];
+let score=0;
+let lives=3;
+let spawnTimer=0;
+let gameState="playing";
 
 /* ================= RESPONSIVE ================= */
 
-let scaleX = 1;
-let scaleY = 1;
-let offsetX = 0;
-let offsetY = 0;
-let dpr = 1;
+let scaleX=1, scaleY=1, offsetX=0, offsetY=0;
 
-function resize() {
-  dpr = Math.min(window.devicePixelRatio || 1, 3);
-  if (isPhone() && dpr < 2) dpr = 2;
-  let w = window.innerWidth;
-  let h = window.innerHeight;
-  if (isPhone() && window.visualViewport) {
-    w = window.visualViewport.width;
-    h = window.visualViewport.height;
-  }
+function resize(){
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
 
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
-  canvas.style.width = w + "px";
-  canvas.style.height = h + "px";
+  const widthRatio=canvas.width/WORLD_WIDTH;
+  const heightRatio=canvas.height/WORLD_HEIGHT;
 
-  const widthRatio = w / WORLD_WIDTH;
-  const heightRatio = h / WORLD_HEIGHT;
-
-  if (isPhone()) {
-    scaleX = widthRatio;
-    scaleY = heightRatio;
-    offsetX = 0;
-    offsetY = 0;
-  } else {
-    const baseScale = Math.min(widthRatio, heightRatio);
-    scaleX = baseScale;
-    scaleY = baseScale;
-    offsetX = (w - WORLD_WIDTH * scaleX) / 2;
-    offsetY = (h - WORLD_HEIGHT * scaleY) / 2;
+  if(isPhone()){
+    scaleX=widthRatio;
+    scaleY=heightRatio;
+    offsetX=0;
+    offsetY=0;
+  }else{
+    const base=Math.min(widthRatio,heightRatio);
+    scaleX=base;
+    scaleY=base;
+    offsetX=(canvas.width-WORLD_WIDTH*scaleX)/2;
+    offsetY=(canvas.height-WORLD_HEIGHT*scaleY)/2;
   }
 }
-
-let lastPhone = usePhoneMap();
-
-function onResize() {
-  resize();
-  const nowPhone = usePhoneMap();
-  if (nowPhone !== lastPhone) {
-    lastPhone = nowPhone;
-    const map = currentLevel === 1 ? MAP02 : MAP03;
-    mapImg.src = nowPhone && map.mapPhone ? map.mapPhone : map.map;
-  }
-}
-window.addEventListener("resize", onResize);
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", onResize);
-}
+window.addEventListener("resize",resize);
 resize();
 
 /* ================= LEVEL LOAD ================= */
 
-function loadLevel(level) {
-  currentLevel = level;
-  const map = level === 1 ? MAP02 : MAP03;
-  mapImg.src = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
-
-  mapImg.onload = () => resetGame();
+function loadLevel(level){
+  currentLevel=level;
+  const map=getMap();
+  mapImg.src=isPhone()&&map.mapPhone?map.mapPhone:map.map;
+  mapImg.onload=resetGame;
 }
 
 /* ================= RESET ================= */
 
-function resetGame() {
-  score = 0;
-  lives = 3;
-  spawnTimer = 0;
-  activeCarts = [];
-  gameState = "playing";
+function resetGame(){
+  score=0;
+  lives=3;
+  spawnTimer=0;
+  activeCarts=[];
+  gameState="playing";
+  intersections={};
 
-  intersections = {};
-
-  if (currentLevel === 1) {
-    intersections.intersection1 = "up";
-    intersections.intersection2 = "up";
-  } else {
-    intersections.intersection1 = "up";    // up/right only
-    intersections.intersection2 = "left";  // left/right only
-    intersections.intersection3 = "up";    // up/right only
-    intersections.intersection4 = "left";  // left/down only
+  if(currentLevel===1){
+    intersections.intersection1="up";
+    intersections.intersection2="up";
+  }
+  else if(currentLevel===2){
+    intersections.intersection1="up";
+    intersections.intersection2="left";
+    intersections.intersection3="up";
+    intersections.intersection4="left";
+  }
+  else{
+    intersections.intersection1="up";
+    intersections.intersection2="left";
+    intersections.intersection3="right";
+    intersections.intersection4="down";
+    intersections.intersection5="up";
   }
 
-  ui.style.display = "none";
+  ui.style.display="none";
 }
 
 /* ================= SPAWN ================= */
 
-function spawnCart() {
-
-  const map = currentLevel === 1 ? MAP02 : MAP03;
-  const destinations = Object.keys(map.buildings);
-  const randomDest =
-    destinations[Math.floor(Math.random() * destinations.length)];
-
-  const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
-  const speed = BASE_SPEED + speedBoost;
+function spawnCart(){
+  const map=getMap();
+  const keys=Object.keys(map.buildings);
+  const random=keys[Math.floor(Math.random()*keys.length)];
+  const speed=BASE_SPEED+Math.floor(score/1000)*SPEED_INCREMENT;
 
   activeCarts.push({
-    x: map.spawn.x,
-    y: map.spawn.y,
-    vx: 0,
-    vy: -speed,
-    speed: speed,
-    destination: randomDest,
-    img: CART_IMAGES[randomDest],
-    forcedDown: false
+    x:map.spawn.x,
+    y:map.spawn.y,
+    vx:currentLevel===3?speed:0,
+    vy:currentLevel===3?0:-speed,
+    speed:speed,
+    destination:random,
+    img:random==="castle"?CART_IMAGES.princess:CART_IMAGES[random]
   });
 
-  sounds.spawn.currentTime = 0;
+  sounds.spawn.currentTime=0;
   sounds.spawn.play();
 }
 
 /* ================= UPDATE ================= */
 
-function update() {
-
-  if (gameState !== "playing") return;
+function update(){
+  if(gameState!=="playing") return;
 
   spawnTimer++;
-  if (spawnTimer >= SPAWN_DELAY) {
-    spawnTimer = 0;
+  if(spawnTimer>=SPAWN_DELAY){
+    spawnTimer=0;
     spawnCart();
   }
 
-  const map = currentLevel === 1 ? MAP02 : MAP03;
+  const map=getMap();
 
-  for (let cart of activeCarts) {
+  for(let cart of activeCarts){
 
-    cart.x += cart.vx;
-    cart.y += cart.vy;
+    cart.x+=cart.vx;
+    cart.y+=cart.vy;
 
-    /* ===== HARD TURN AT X1016 (ALWAYS DOWN) ===== */
-
-    if (currentLevel === 2 &&
-        !cart.forcedDown &&
-        cart.x >= 1016) {
-
-      cart.x = 1016;
-      cart.vx = 0;
-      cart.vy = cart.speed;
-      cart.forcedDown = true;
+    if(currentLevel===2 && cart.x>=1016){
+      cart.x=1016;
+      cart.vx=0;
+      cart.vy=cart.speed;
     }
 
-    /* ===== INTERSECTIONS ===== */
-
-    for (let key in map.intersections) {
-
-      const node = map.intersections[key];
-      const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
-
-      let hitRadius = currentLevel === 1 ? 8 : 14;
-      if (currentLevel === 2 && key === "intersection2") hitRadius = 8;
-      if (dist < hitRadius && !cart[key]) {
-
-        const dir = intersections[key];
-
-        if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
-        if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
-        if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
-        if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
-
-        cart[key] = true;
+    for(let key in map.intersections){
+      const node=map.intersections[key];
+      if(Math.hypot(cart.x-node.x,cart.y-node.y)<12 && !cart[key]){
+        const dir=intersections[key];
+        if(dir==="up"){cart.vx=0;cart.vy=-cart.speed;}
+        if(dir==="down"){cart.vx=0;cart.vy=cart.speed;}
+        if(dir==="left"){cart.vx=-cart.speed;cart.vy=0;}
+        if(dir==="right"){cart.vx=cart.speed;cart.vy=0;}
+        cart[key]=true;
       }
     }
 
     checkBuildings(cart);
   }
 
-  if (currentLevel === 1 && score >= 100) {
-    loadLevel(2);
-  }
+  if(currentLevel===1 && score>=100) loadLevel(2);
+  if(currentLevel===2 && score>=5000) loadLevel(3);
 }
 
 /* ================= BUILDINGS ================= */
 
-function segmentHitsCircle(ax, ay, bx, by, cx, cy, r) {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return Math.hypot(ax - cx, ay - cy) <= r;
-  const t = Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / lenSq));
-  const px = ax + t * dx;
-  const py = ay + t * dy;
-  return Math.hypot(px - cx, py - cy) <= r;
-}
-
-function checkBuildings(cart) {
-
-  const map = currentLevel === 1 ? MAP02 : MAP03;
-  const prevX = cart.x - cart.vx;
-  const prevY = cart.y - cart.vy;
-  const hitRadius = 20;
-
-  for (let key in map.buildings) {
-
-    const node = map.buildings[key];
-    const hit = Math.hypot(cart.x - node.x, cart.y - node.y) < hitRadius ||
-      segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
-
-    if (hit) {
-
-      activeCarts = activeCarts.filter(c => c !== cart);
-
-      if (key === cart.destination) {
-        score += 100;
-        sounds[key].currentTime = 0;
-        sounds[key].play();
-      } else {
+function checkBuildings(cart){
+  const map=getMap();
+  for(let key in map.buildings){
+    const node=map.buildings[key];
+    if(Math.hypot(cart.x-node.x,cart.y-node.y)<20){
+      activeCarts=activeCarts.filter(c=>c!==cart);
+      if(key===cart.destination){
+        score+=100;
+        sounds[key]?.play();
+      }else{
         lives--;
-        sounds.wrong.currentTime = 0;
         sounds.wrong.play();
-        if (lives <= 0) loseGame();
+        if(lives<=0) loseGame();
       }
     }
   }
@@ -371,143 +312,97 @@ function checkBuildings(cart) {
 
 /* ================= INPUT ================= */
 
-function handleTap(clientX, clientY) {
+function handleTap(clientX,clientY){
+  if(gameState!=="playing") return;
 
-  if (gameState !== "playing") return;
+  const rect=canvas.getBoundingClientRect();
+  const worldX=(clientX-rect.left-offsetX)/scaleX;
+  const worldY=(clientY-rect.top-offsetY)/scaleY;
 
-  const rect = canvas.getBoundingClientRect();
-  const worldX = (clientX - rect.left - offsetX) / scaleX;
-  const worldY = (clientY - rect.top - offsetY) / scaleY;
+  const map=getMap();
 
-  const map = currentLevel === 1 ? MAP02 : MAP03;
-  const tapRadius = getTapRadius();
+  for(let key in map.intersections){
+    const node=map.intersections[key];
+    if(Math.hypot(worldX-node.x,worldY-node.y)<TAP_RADIUS){
 
-  for (let key in map.intersections) {
-
-    const node = map.intersections[key];
-    const dist = Math.hypot(worldX - node.x, worldY - node.y);
-
-    if (dist < tapRadius) {
-
-      if (currentLevel === 2) {
-
-        if (key === "intersection1")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
-        if (key === "intersection2")
-          intersections[key] =
-            intersections[key] === "left" ? "right" : "left";
-
-        if (key === "intersection3")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
-        if (key === "intersection4")
-          intersections[key] =
-            intersections[key] === "left" ? "down" : "left";
-
-      } else {
-
-        intersections[key] =
-          intersections[key] === "up" ? "left" :
-          intersections[key] === "left" ? "right" :
-          "up";
+      if(currentLevel===3){
+        if(key==="intersection1") intersections[key]=intersections[key]==="up"?"down":"up";
+        if(key==="intersection2") intersections[key]=intersections[key]==="left"?"right":"left";
+        if(key==="intersection3") intersections[key]=intersections[key]==="right"?"down":"right";
+        if(key==="intersection4") intersections[key]=intersections[key]==="down"?"right":"down";
+        if(key==="intersection5") intersections[key]=intersections[key]==="up"?"right":"up";
+      }
+      else if(currentLevel===2){
+        if(key==="intersection1") intersections[key]=intersections[key]==="up"?"right":"up";
+        if(key==="intersection2") intersections[key]=intersections[key]==="left"?"right":"left";
+        if(key==="intersection3") intersections[key]=intersections[key]==="up"?"right":"up";
+        if(key==="intersection4") intersections[key]=intersections[key]==="left"?"down":"left";
+      }
+      else{
+        intersections[key]=intersections[key]==="up"?"left":
+                           intersections[key]==="left"?"right":"up";
       }
     }
   }
 }
 
-canvas.addEventListener("click", e => handleTap(e.clientX, e.clientY));
-
-canvas.addEventListener("touchend", e => {
-  if (e.cancelable) e.preventDefault();
-  const t = e.changedTouches[0];
-  if (t) handleTap(t.clientX, t.clientY);
-}, { passive: false });
+canvas.addEventListener("click",e=>handleTap(e.clientX,e.clientY));
+canvas.addEventListener("touchend",e=>{
+  const t=e.changedTouches[0];
+  if(t) handleTap(t.clientX,t.clientY);
+});
 
 /* ================= DRAW ================= */
 
-function draw() {
+function draw(){
+  ctx.setTransform(scaleX,0,0,scaleY,offsetX,offsetY);
+  ctx.clearRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
+  ctx.drawImage(mapImg,0,0,WORLD_WIDTH,WORLD_HEIGHT);
 
-  ctx.imageSmoothingEnabled = false;
-  ctx.setTransform(scaleX * dpr, 0, 0, scaleY * dpr, offsetX * dpr, offsetY * dpr);
-  ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  const map=getMap();
 
-  drawArrows();
-  drawCarts();
-  drawHUD();
-}
-
-function drawArrows() {
-
-  const map = currentLevel === 1 ? MAP02 : MAP03;
-
-  for (let key in map.intersections) {
-
-    const node = map.intersections[key];
-    const state = intersections[key];
-
-    let img = arrowUpImg;
-    let rotation = 0;
-
-    if (state === "left") img = arrowLeftImg;
-    if (state === "right") img = arrowRightImg;
-    if (state === "down") {
-      img = arrowUpImg;
-      rotation = Math.PI;
-    }
-
+  for(let key in map.intersections){
+    const node=map.intersections[key];
+    const state=intersections[key];
+    let img=arrowUpImg,rot=0;
+    if(state==="left") img=arrowLeftImg;
+    if(state==="right") img=arrowRightImg;
+    if(state==="down"){ img=arrowUpImg; rot=Math.PI; }
     ctx.save();
-    ctx.translate(node.x, node.y);
-    ctx.rotate(rotation);
-    ctx.drawImage(img, -ARROW_SIZE/2, -ARROW_SIZE/2, ARROW_SIZE, ARROW_SIZE);
+    ctx.translate(node.x,node.y);
+    ctx.rotate(rot);
+    ctx.drawImage(img,-ARROW_SIZE/2,-ARROW_SIZE/2,ARROW_SIZE,ARROW_SIZE);
     ctx.restore();
   }
-}
 
-function drawCarts() {
-
-  for (let cart of activeCarts) {
-
-    let rotation = 0;
-
-    if (cart.vy > 0) rotation = 0;
-    else if (cart.vy < 0) rotation = Math.PI;
-    else if (cart.vx < 0) rotation = Math.PI / 2;
-    else if (cart.vx > 0) rotation = -Math.PI / 2;
-
+  for(let cart of activeCarts){
+    let rot=0;
+    if(cart.vy<0) rot=Math.PI;
+    else if(cart.vx<0) rot=Math.PI/2;
+    else if(cart.vx>0) rot=-Math.PI/2;
     ctx.save();
-    ctx.translate(cart.x, cart.y);
-    ctx.rotate(rotation);
-    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
+    ctx.translate(cart.x,cart.y);
+    ctx.rotate(rot);
+    ctx.drawImage(cart.img,-CART_SIZE/2,-CART_SIZE/2,CART_SIZE,CART_SIZE);
     ctx.restore();
   }
-}
 
-function drawHUD() {
-  ctx.fillStyle = "white";
-  ctx.font = "28px Arial";
-  ctx.fillText("Level: " + currentLevel, 20, 40);
-  ctx.fillText("Score: " + score, 20, 75);
-  ctx.fillText("Lives: " + lives, 20, 110);
+  ctx.fillStyle="white";
+  ctx.font="28px Arial";
+  ctx.fillText("Level: "+currentLevel,20,40);
+  ctx.fillText("Score: "+score,20,75);
+  ctx.fillText("Lives: "+lives,20,110);
 }
 
 /* ================= LOOP ================= */
 
-function loseGame() {
-  gameState = "lose";
-  resultText.innerText = "GAME OVER";
-  ui.style.display = "block";
+function loseGame(){
+  gameState="lose";
+  resultText.innerText="GAME OVER";
+  ui.style.display="block";
 }
 
-function restartGame() {
-  ui.style.display = "none";
-  resetGame();
-}
-
-function loop() {
+function loop(){
   update();
   draw();
   requestAnimationFrame(loop);
@@ -515,5 +410,3 @@ function loop() {
 
 loadLevel(1);
 requestAnimationFrame(loop);
-
-window.addEventListener("load", () => { loadLevel(currentLevel); });
