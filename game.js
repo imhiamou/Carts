@@ -296,15 +296,31 @@ function update() {
 
 /* ================= BUILDINGS ================= */
 
+function segmentHitsCircle(ax, ay, bx, by, cx, cy, r) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(ax - cx, ay - cy) <= r;
+  const t = Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / lenSq));
+  const px = ax + t * dx;
+  const py = ay + t * dy;
+  return Math.hypot(px - cx, py - cy) <= r;
+}
+
 function checkBuildings(cart) {
 
   const map = currentLevel === 1 ? MAP02 : MAP03;
+  const prevX = cart.x - cart.vx;
+  const prevY = cart.y - cart.vy;
+  const hitRadius = 20;
 
   for (let key in map.buildings) {
 
     const node = map.buildings[key];
+    const hit = Math.hypot(cart.x - node.x, cart.y - node.y) < hitRadius ||
+      segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
 
-    if (Math.hypot(cart.x - node.x, cart.y - node.y) < 20) {
+    if (hit) {
 
       activeCarts = activeCarts.filter(c => c !== cart);
 
