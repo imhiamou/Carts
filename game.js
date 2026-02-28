@@ -287,7 +287,7 @@ function update(){
   }
 
   if(currentLevel===1 && score>=100) loadLevel(2);
-  if(currentLevel===2 && score>=5000) loadLevel(3);
+  if(currentLevel===2 && score>=100) loadLevel(3);
 }
 
 /* ================= BUILDINGS ================= */
