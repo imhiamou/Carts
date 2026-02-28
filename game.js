@@ -151,6 +151,7 @@ let dpr = 1;
 
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 3);
+  if (isPhone() && dpr < 2) dpr = 2;
   const w = window.innerWidth;
   const h = window.innerHeight;
 
@@ -496,3 +497,7 @@ function loop() {
 
 loadLevel(1);
 requestAnimationFrame(loop);
+
+window.addEventListener("load", () => {
+  loadLevel(currentLevel);
+});
