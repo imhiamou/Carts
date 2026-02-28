@@ -164,15 +164,6 @@ function resize() {
     h = window.visualViewport.height;
   }
 
-  if (isPhone() && w > 0 && h > 0) {
-    const aspect = WORLD_WIDTH / WORLD_HEIGHT;
-    if (w / h > aspect) {
-      w = h * aspect;
-    } else {
-      h = w / aspect;
-    }
-  }
-
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   canvas.style.width = w + "px";
@@ -181,14 +172,18 @@ function resize() {
   const widthRatio = w / WORLD_WIDTH;
   const heightRatio = h / WORLD_HEIGHT;
 
-  let baseScale = Math.min(widthRatio, heightRatio);
-  if (isPhone()) baseScale *= 1.08;
-
-  scaleX = baseScale;
-  scaleY = baseScale;
-
-  offsetX = (w - WORLD_WIDTH * scaleX) / 2;
-  offsetY = (h - WORLD_HEIGHT * scaleY) / 2;
+  if (isPhone()) {
+    scaleX = widthRatio;
+    scaleY = heightRatio;
+    offsetX = 0;
+    offsetY = 0;
+  } else {
+    const baseScale = Math.min(widthRatio, heightRatio);
+    scaleX = baseScale;
+    scaleY = baseScale;
+    offsetX = (w - WORLD_WIDTH * scaleX) / 2;
+    offsetY = (h - WORLD_HEIGHT * scaleY) / 2;
+  }
 }
 
 let lastPhone = usePhoneMap();
