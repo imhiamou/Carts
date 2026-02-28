@@ -240,6 +240,9 @@ resize();
 
 function loadLevel(level) {
   currentLevel = level;
+  score = 0;
+  spawnTimer = 0;
+  activeCarts = [];
   const map = level === 1 ? MAP02 : level === 2 ? MAP03 : MAP04;
   mapImg.src = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
 
