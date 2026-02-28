@@ -141,7 +141,6 @@ const MAP03 = {
 
 const MAP04 = {
   map: "map04.png",
-  mapPhone: "map04_phone.png",
   spawn: { x: 12, y: 483 },
 
   intersections: {
