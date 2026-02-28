@@ -157,8 +157,21 @@ let dpr = 1;
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 3);
   if (isPhone() && dpr < 2) dpr = 2;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  if (isPhone() && window.visualViewport) {
+    w = window.visualViewport.width;
+    h = window.visualViewport.height;
+  }
+
+  if (isPhone() && w > 0 && h > 0) {
+    const aspect = WORLD_WIDTH / WORLD_HEIGHT;
+    if (w / h > aspect) {
+      w = h * aspect;
+    } else {
+      h = w / aspect;
+    }
+  }
 
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
@@ -180,7 +193,7 @@ function resize() {
 
 let lastPhone = usePhoneMap();
 
-window.addEventListener("resize", () => {
+function onResize() {
   resize();
   const nowPhone = usePhoneMap();
   if (nowPhone !== lastPhone) {
@@ -188,7 +201,11 @@ window.addEventListener("resize", () => {
     const map = currentLevel === 1 ? MAP02 : MAP03;
     mapImg.src = nowPhone && map.mapPhone ? map.mapPhone : map.map;
   }
-});
+}
+window.addEventListener("resize", onResize);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", onResize);
+}
 resize();
 
 /* ================= LEVEL LOAD ================= */
