@@ -147,7 +147,7 @@ const MAP04 = {
     intersection1: { x: 411, y: 531 },
     intersection2: { x: 407, y: 275 },
     intersection3: { x: 826, y: 275 },
-    intersection4: { x: 414, y: 671 },
+    intersection4: { x: 412, y: 674 },
     intersection5: { x: 607, y: 674 }
   },
 
@@ -350,7 +350,6 @@ function update() {
 
       let hitRadius = currentLevel === 1 ? 8 : 14;
       if (currentLevel === 2 && key === "intersection2") hitRadius = 8;
-      if (currentLevel === 3 && key === "intersection4") hitRadius = 28;
       const hit = dist < hitRadius ||
         segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
       if (hit && !cart[key]) {
