@@ -14,7 +14,7 @@ const WORLD_HEIGHT = 900;
 /* ================= SIZE ================= */
 
 const CART_SIZE = 170;
-const ARROW_SIZE = 80;
+const ARROW_SIZE = 50;
 const TAP_RADIUS = 80;
 
 function isPhone() {
@@ -340,6 +340,9 @@ function update() {
 
     /* ===== INTERSECTIONS ===== */
 
+    const prevX = cart.x - cart.vx;
+    const prevY = cart.y - cart.vy;
+
     for (let key in map.intersections) {
 
       const node = map.intersections[key];
@@ -347,7 +350,9 @@ function update() {
 
       let hitRadius = currentLevel === 1 ? 8 : 14;
       if (currentLevel === 2 && key === "intersection2") hitRadius = 8;
-      if (dist < hitRadius && !cart[key]) {
+      const hit = dist < hitRadius ||
+        segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
+      if (hit && !cart[key]) {
 
         const dir = intersections[key];
 
