@@ -350,6 +350,7 @@ function update() {
 
       let hitRadius = currentLevel === 1 ? 8 : 14;
       if (currentLevel === 2 && key === "intersection2") hitRadius = 8;
+      if (currentLevel === 3 && key === "intersection4") hitRadius = 14 + cart.speed * 4;
       const hit = dist < hitRadius ||
         segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
       if (hit && !cart[key]) {
