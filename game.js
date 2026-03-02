@@ -147,8 +147,8 @@ const MAP04 = {
     intersection1: { x: 411, y: 531 },
     intersection2: { x: 407, y: 275 },
     intersection3: { x: 826, y: 275 },
-    intersection4: { x: 412, y: 670 },
-    intersection5: { x: 607, y: 670 }
+    intersection4: { x: 412, y: 679 },
+    intersection5: { x: 607, y: 679 }
   },
 
   buildings: {
