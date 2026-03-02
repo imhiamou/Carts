@@ -16,6 +16,7 @@ const WORLD_HEIGHT = 900;
 const CART_SIZE = 170;
 const ARROW_SIZE = 50;
 const TAP_RADIUS = 80;
+const INTERSECTION_RADIUS = 8;
 
 function isPhone() {
   return window.matchMedia("(max-width: 768px)").matches;
@@ -346,13 +347,18 @@ function update() {
     for (let key in map.intersections) {
 
       const node = map.intersections[key];
-      const dist = Math.hypot(cart.x - node.x, cart.y - node.y);
 
-      let hitRadius = currentLevel === 1 ? 8 : 14;
-      if (currentLevel === 2 && key === "intersection2") hitRadius = 8;
-      if (currentLevel === 3 && key === "intersection4") hitRadius = 14 + cart.speed * 4;
-      const hit = dist < hitRadius ||
-        segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
+      // Turn only when the cart center really passes
+      // over the intersection point (small radius),
+      // but still use segment collision so fast carts
+      // can't tunnel through between frames.
+      const hit = segmentHitsCircle(
+        prevX, prevY,
+        cart.x, cart.y,
+        node.x, node.y,
+        INTERSECTION_RADIUS
+      );
+
       if (hit && !cart[key]) {
 
         const dir = intersections[key];
