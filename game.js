@@ -171,7 +171,7 @@ const MAP05 = {
   intersections: {
     intersection1: { x: 607, y: 612 },
     intersection2: { x: 909, y: 612 },
-    intersection3: { x: 38, y: 612 }
+    intersection3: { x: 438, y: 605 }
   },
 
   buildings: {
