@@ -162,10 +162,32 @@ const MAP04 = {
   }
 };
 
+/* ================= MAP05 ================= */
+
+const MAP05 = {
+  map: "map05.png",
+  spawn: { x: 607, y: 897 },
+
+  intersections: {
+    intersection1: { x: 607, y: 612 },
+    intersection2: { x: 909, y: 612 },
+    intersection3: { x: 38, y: 612 }
+  },
+
+  buildings: {
+    castle: { x: 605, y: 219 },
+    barn: { x: 909, y: 798 },
+    sawmill: { x: 912, y: 382 },
+    windmill: { x: 433, y: 398 },
+    mine: { x: 336, y: 621 }
+  }
+};
+
 function getMap() {
   if (currentLevel === 1) return MAP02;
   if (currentLevel === 2) return MAP03;
-  return MAP04;
+  if (currentLevel === 3) return MAP04;
+  return MAP05;
 }
 
 /* ================= LEVEL STATE ================= */
@@ -243,7 +265,7 @@ function loadLevel(level) {
   score = 0;
   spawnTimer = 0;
   activeCarts = [];
-  const map = level === 1 ? MAP02 : level === 2 ? MAP03 : MAP04;
+  const map = level === 1 ? MAP02 : level === 2 ? MAP03 : level === 3 ? MAP04 : MAP05;
   mapImg.src = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
 
   mapImg.onload = () => resetGame();
@@ -274,6 +296,10 @@ function resetGame() {
     intersections.intersection3 = "right";
     intersections.intersection4 = "down";
     intersections.intersection5 = "up";
+  } else if (currentLevel === 4) {
+    intersections.intersection1 = "up";
+    intersections.intersection2 = "up";
+    intersections.intersection3 = "up";
   }
 
   ui.style.display = "none";
@@ -292,12 +318,13 @@ function spawnCart() {
   const speed = BASE_SPEED + speedBoost;
 
   const cartImg = randomDest === "castle" ? CART_IMAGES.princess : CART_IMAGES[randomDest];
-  const isLevel3 = currentLevel === 3;
+  const spawnRight = currentLevel === 3;
+  const spawnUp = !spawnRight;
   activeCarts.push({
     x: map.spawn.x,
     y: map.spawn.y,
-    vx: isLevel3 ? speed : 0,
-    vy: isLevel3 ? 0 : -speed,
+    vx: spawnRight ? speed : 0,
+    vy: spawnUp ? -speed : 0,
     speed: speed,
     destination: randomDest,
     img: cartImg,
@@ -380,6 +407,9 @@ function update() {
   }
   if (currentLevel === 2 && score >= 100) {
     loadLevel(3);
+  }
+  if (currentLevel === 3 && score >= 100) {
+    loadLevel(4);
   }
 }
 
@@ -486,6 +516,21 @@ function handleTap(clientX, clientY) {
         if (key === "intersection5")
           intersections[key] =
             intersections[key] === "up" ? "right" : "up";
+
+      } else if (currentLevel === 4) {
+
+        if (key === "intersection1")
+          intersections[key] =
+            intersections[key] === "up" ? "left" :
+            intersections[key] === "left" ? "right" : "up";
+
+        if (key === "intersection2")
+          intersections[key] =
+            intersections[key] === "up" ? "down" : "up";
+
+        if (key === "intersection3")
+          intersections[key] =
+            intersections[key] === "up" ? "left" : "up";
 
       } else {
 
