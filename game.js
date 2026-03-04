@@ -375,20 +375,25 @@ function update() {
 
       const node = map.intersections[key];
 
-      // Turn only when the cart center really passes
-      // over the intersection point (small radius),
-      // but still use segment collision so fast carts
-      // can't tunnel through between frames.
+      // Map05: wider segment radius so carts don't miss, but only turn when
+      // the segment actually crosses the center (then snap cart to center).
+      // Other maps: small radius, segment hit = turn at center.
+      const radius = currentLevel === 4 ? 22 : INTERSECTION_RADIUS;
       const hit = segmentHitsCircle(
         prevX, prevY,
         cart.x, cart.y,
         node.x, node.y,
-        INTERSECTION_RADIUS
+        radius
       );
 
       if (hit && !cart[key]) {
 
         const dir = intersections[key];
+
+        if (currentLevel === 4) {
+          cart.x = node.x;
+          cart.y = node.y;
+        }
 
         if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
         if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
