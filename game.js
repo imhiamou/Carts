@@ -5,6 +5,183 @@ const ctx = canvas.getContext("2d");
 
 const ui = document.getElementById("ui");
 const resultText = document.getElementById("result");
+const authScreen = document.getElementById("authScreen");
+const levelMenu = document.getElementById("levelMenu");
+const topControls = document.getElementById("topControls");
+const loginButton = document.getElementById("loginButton");
+const usernameInput = document.getElementById("usernameInput");
+const passwordInput = document.getElementById("passwordInput");
+const loginError = document.getElementById("loginError");
+const menuTitle = document.getElementById("menuTitle");
+const menuSubtitle = document.getElementById("menuSubtitle");
+const levelButtons = document.getElementById("levelButtons");
+const continueButton = document.getElementById("continueButton");
+
+/* ================= AUTH ================= */
+
+const USERS = {
+  mermy: { password: "wolf", isAdmin: false },
+  admin: { password: "admin", isAdmin: true }
+};
+
+const LEVEL_COUNT = 4;
+const STORAGE_PREFIX = "medieval_pixel_cart_progress_v1_";
+
+let currentUser = null;
+let isAdminUser = false;
+let unlockedLevel = 1;
+let hasStartedLevel = false;
+
+function progressStorageKey(username) {
+  return STORAGE_PREFIX + username;
+}
+
+function loadUserProgress(username) {
+  const fallback = { unlockedLevel: 1, lastLevel: 1 };
+  try {
+    const raw = localStorage.getItem(progressStorageKey(username));
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    const savedUnlocked = Math.max(1, Math.min(LEVEL_COUNT, Number(parsed.unlockedLevel) || 1));
+    const savedLast = Math.max(1, Math.min(savedUnlocked, Number(parsed.lastLevel) || 1));
+    return { unlockedLevel: savedUnlocked, lastLevel: savedLast };
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function saveUserProgress() {
+  if (!currentUser || isAdminUser) return;
+  const safeUnlocked = Math.max(1, Math.min(LEVEL_COUNT, unlockedLevel));
+  const safeLast = Math.max(1, Math.min(safeUnlocked, currentLevel));
+  const payload = JSON.stringify({
+    unlockedLevel: safeUnlocked,
+    lastLevel: safeLast
+  });
+  localStorage.setItem(progressStorageKey(currentUser), payload);
+}
+
+function setUnlockedLevel(level) {
+  if (isAdminUser) return;
+  const bounded = Math.max(1, Math.min(LEVEL_COUNT, level));
+  if (bounded > unlockedLevel) {
+    unlockedLevel = bounded;
+    saveUserProgress();
+  }
+}
+
+function canAccessLevel(level) {
+  return isAdminUser || level <= unlockedLevel;
+}
+
+function isElementVisible(element) {
+  return window.getComputedStyle(element).display !== "none";
+}
+
+function renderLevelMenu() {
+  if (!currentUser) return;
+  menuTitle.textContent = isAdminUser ? "Admin Level Menu" : "Select Level";
+  menuSubtitle.textContent = isAdminUser
+    ? `Logged in as admin. All ${LEVEL_COUNT} levels are unlocked.`
+    : `Logged in as ${currentUser}. Unlocked up to Level ${unlockedLevel}.`;
+  levelButtons.innerHTML = "";
+
+  for (let level = 1; level <= LEVEL_COUNT; level++) {
+    const unlocked = canAccessLevel(level);
+    const button = document.createElement("button");
+    const isCurrent = hasStartedLevel && level === currentLevel;
+    button.textContent = unlocked
+      ? `Level ${level}${isCurrent ? " (Current)" : ""}`
+      : `Level ${level} (Locked)`;
+    button.disabled = !unlocked;
+    button.addEventListener("click", () => selectLevel(level));
+    levelButtons.appendChild(button);
+  }
+}
+
+function selectLevel(level) {
+  if (!canAccessLevel(level)) return;
+  hasStartedLevel = true;
+  ui.style.display = "none";
+  levelMenu.style.display = "none";
+  loadLevel(level);
+}
+
+function openLevelMenu() {
+  if (!currentUser) return;
+  renderLevelMenu();
+  continueButton.style.display = hasStartedLevel && gameState !== "lose" ? "inline-block" : "none";
+  levelMenu.style.display = "flex";
+  if (gameState === "playing") {
+    gameState = "paused";
+  }
+}
+
+function closeLevelMenu() {
+  if (!currentUser) return;
+  levelMenu.style.display = "none";
+  if (hasStartedLevel && gameState !== "lose") {
+    gameState = "playing";
+  }
+}
+
+function handleLogin() {
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value;
+  const account = USERS[username];
+
+  if (!account || account.password !== password) {
+    loginError.textContent = "Wrong username or password.";
+    return;
+  }
+
+  currentUser = username;
+  isAdminUser = account.isAdmin;
+  hasStartedLevel = false;
+
+  if (isAdminUser) {
+    unlockedLevel = LEVEL_COUNT;
+    currentLevel = 1;
+  } else {
+    const progress = loadUserProgress(username);
+    unlockedLevel = progress.unlockedLevel;
+    currentLevel = progress.lastLevel;
+  }
+
+  loginError.textContent = "";
+  passwordInput.value = "";
+  authScreen.style.display = "none";
+  topControls.style.display = "flex";
+  gameState = "paused";
+  openLevelMenu();
+}
+
+function logout() {
+  currentUser = null;
+  isAdminUser = false;
+  unlockedLevel = 1;
+  hasStartedLevel = false;
+  gameState = "paused";
+  ui.style.display = "none";
+  levelMenu.style.display = "none";
+  topControls.style.display = "none";
+  authScreen.style.display = "flex";
+  loginError.textContent = "";
+  usernameInput.value = "";
+  passwordInput.value = "";
+  activeCarts = [];
+  score = 0;
+  lives = 3;
+  spawnTimer = 0;
+}
+
+loginButton.addEventListener("click", handleLogin);
+usernameInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") handleLogin();
+});
+passwordInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") handleLogin();
+});
 
 /* ================= WORLD ================= */
 
@@ -262,6 +439,9 @@ resize();
 
 function loadLevel(level) {
   currentLevel = level;
+  if (currentUser && !isAdminUser) {
+    saveUserProgress();
+  }
   score = 0;
   spawnTimer = 0;
   activeCarts = [];
@@ -278,7 +458,9 @@ function resetGame() {
   lives = 3;
   spawnTimer = 0;
   activeCarts = [];
-  gameState = "playing";
+  gameState = currentUser && !isElementVisible(authScreen) && !isElementVisible(levelMenu)
+    ? "playing"
+    : "paused";
 
   intersections = {};
 
@@ -408,12 +590,15 @@ function update() {
   }
 
   if (currentLevel === 1 && score >= 100) {
+    setUnlockedLevel(2);
     loadLevel(2);
   }
   if (currentLevel === 2 && score >= 100) {
+    setUnlockedLevel(3);
     loadLevel(3);
   }
   if (currentLevel === 3 && score >= 100) {
+    setUnlockedLevel(4);
     loadLevel(4);
   }
 }
@@ -644,6 +829,12 @@ function loop() {
 }
 
 loadLevel(1);
+gameState = "paused";
 requestAnimationFrame(loop);
 
-window.addEventListener("load", () => { loadLevel(currentLevel); });
+window.addEventListener("load", () => {
+  loadLevel(currentLevel);
+  authScreen.style.display = "flex";
+  levelMenu.style.display = "none";
+  topControls.style.display = "none";
+});
