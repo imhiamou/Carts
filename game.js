@@ -23,7 +23,7 @@ const USERS = {
   admin: { password: "admin", isAdmin: true }
 };
 
-const LEVEL_COUNT = 6;
+const LEVEL_COUNT = 4;
 const STORAGE_PREFIX = "medieval_pixel_cart_progress_v1_";
 const SESSION_KEY = "medieval_pixel_cart_active_user_v1";
 const BOT_ENDPOINT_KEY = "medieval_pixel_cart_bot_endpoint_v1";
@@ -296,59 +296,11 @@ const MAP05 = {
   }
 };
 
-/* ================= MAP06 ================= */
-
-const MAP06 = {
-  map: "map03.png",
-  mapPhone: "map03_phone.png",
-  spawn: { x: 322, y: 879 },
-
-  intersections: {
-    intersection1: { x: 322, y: 560 },
-    intersection2: { x: 324, y: 345 },
-    intersection3: { x: 741, y: 344 },
-    intersection4: { x: 1020, y: 622 }
-  },
-
-  buildings: {
-    sawmill: { x: 531, y: 560 },
-    barn: { x: 174, y: 338 },
-    mine: { x: 749, y: 224 },
-    tavern: { x: 867, y: 627 },
-    windmill: { x: 1029, y: 758 },
-    castle: { x: 531, y: 224 }
-  }
-};
-
-/* ================= MAP07 ================= */
-
-const MAP07 = {
-  map: "map05.png",
-  spawn: { x: 607, y: 897 },
-
-  intersections: {
-    intersection1: { x: 607, y: 612 },
-    intersection2: { x: 909, y: 612 },
-    intersection3: { x: 438, y: 605 }
-  },
-
-  buildings: {
-    castle: { x: 605, y: 219 },
-    barn: { x: 909, y: 798 },
-    sawmill: { x: 912, y: 382 },
-    windmill: { x: 433, y: 398 },
-    mine: { x: 336, y: 621 },
-    tavern: { x: 607, y: 798 }
-  }
-};
-
 function getMap() {
   if (currentLevel === 1) return MAP02;
   if (currentLevel === 2) return MAP03;
   if (currentLevel === 3) return MAP04;
-  if (currentLevel === 4) return MAP05;
-  if (currentLevel === 5) return MAP06;
-  return MAP07;
+  return MAP05;
 }
 
 /* ================= LEVEL STATE ================= */
@@ -548,13 +500,7 @@ function loadLevel(level) {
   score = 0;
   spawnTimer = 0;
   activeCarts = [];
-  const map =
-    level === 1 ? MAP02 :
-    level === 2 ? MAP03 :
-    level === 3 ? MAP04 :
-    level === 4 ? MAP05 :
-    level === 5 ? MAP06 :
-    MAP07;
+  const map = level === 1 ? MAP02 : level === 2 ? MAP03 : level === 3 ? MAP04 : MAP05;
   mapImg.src = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
 
   mapImg.onload = () => resetGame();
@@ -586,15 +532,6 @@ function resetGame() {
     intersections.intersection4 = "down";
     intersections.intersection5 = "up";
   } else if (currentLevel === 4) {
-    intersections.intersection1 = "up";
-    intersections.intersection2 = "up";
-    intersections.intersection3 = "up";
-  } else if (currentLevel === 5) {
-    intersections.intersection1 = "up";
-    intersections.intersection2 = "left";
-    intersections.intersection3 = "up";
-    intersections.intersection4 = "left";
-  } else if (currentLevel === 6) {
     intersections.intersection1 = "up";
     intersections.intersection2 = "up";
     intersections.intersection3 = "up";
@@ -700,14 +637,6 @@ function update() {
     setUnlockedLevel(4);
     loadLevel(4);
   }
-  if (currentLevel === 4 && score >= LEVEL_UP_SCORE) {
-    setUnlockedLevel(5);
-    loadLevel(5);
-  }
-  if (currentLevel === 5 && score >= LEVEL_UP_SCORE) {
-    setUnlockedLevel(6);
-    loadLevel(6);
-  }
 }
 
 /* ================= BUILDINGS ================= */
@@ -787,20 +716,6 @@ function handleTap(clientX, clientY) {
         }
         if (key === "intersection2") intersections[key] = intersections[key] === "up" ? "down" : "up";
         if (key === "intersection3") intersections[key] = intersections[key] === "up" ? "left" : "up";
-      } else if (currentLevel === 5) {
-        if (key === "intersection1") intersections[key] = intersections[key] === "up" ? "right" : "up";
-        if (key === "intersection2") intersections[key] = intersections[key] === "left" ? "right" : "left";
-        if (key === "intersection3") intersections[key] = intersections[key] === "up" ? "right" : "up";
-        if (key === "intersection4") intersections[key] = intersections[key] === "left" ? "down" : "left";
-      } else if (currentLevel === 6) {
-        if (key === "intersection1") {
-          intersections[key] =
-            intersections[key] === "up" ? "left" :
-            intersections[key] === "left" ? "right" :
-            "up";
-        }
-        if (key === "intersection2") intersections[key] = intersections[key] === "up" ? "left" : "up";
-        if (key === "intersection3") intersections[key] = intersections[key] === "up" ? "right" : "up";
       } else {
         intersections[key] =
           intersections[key] === "up" ? "left" :
