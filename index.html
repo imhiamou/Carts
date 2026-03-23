@@ -3,117 +3,111 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Medieval Pixel Cart</title>
+<title>Medieval Pixel Cart - Login</title>
 <style>
-body { margin:0; background:#2c5e2c; overflow:hidden; touch-action: manipulation; }
-canvas { display:block; width:100vw; height:100vh; image-rendering: pixelated; touch-action: manipulation; }
-#ui {
-  position:absolute;
-  top:40%;
-  width:100%;
-  text-align:center;
-  color:white;
-  font-size:28px;
-  display:none;
-  z-index:20;
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: radial-gradient(circle at top, #375f37 0%, #1d311d 70%);
+  color: #fff;
+  min-height: 100vh;
 }
-button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manipulation; }
-.overlay {
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(0, 0, 0, 0.65);
-  z-index:30;
+.page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+h1 {
+  margin: 0 0 18px;
+  text-align: center;
+}
+.layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 16px;
 }
 .panel {
-  width:min(92vw, 440px);
-  background:rgba(25, 25, 25, 0.95);
-  color:#fff;
-  padding:22px;
-  border-radius:12px;
-  text-align:center;
+  background: rgba(15, 15, 15, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 18px;
 }
-.panel h1, .panel h2 {
-  margin:0 0 12px;
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 24px;
 }
 .panel p {
-  margin:6px 0 14px;
+  margin: 8px 0;
+  line-height: 1.4;
 }
-.panel input {
-  width:100%;
-  box-sizing:border-box;
-  font-size:18px;
-  padding:10px;
-  margin:8px 0;
-  border:1px solid #999;
-  border-radius:8px;
+input, button {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 18px;
+  border-radius: 8px;
 }
-#levelButtons {
-  display:grid;
-  grid-template-columns:repeat(2, minmax(0, 1fr));
-  gap:10px;
-  margin:14px 0;
+input {
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid #999;
 }
-#levelButtons button {
-  width:100%;
+button {
+  padding: 12px;
+  margin-top: 8px;
+  border: 0;
+  background: #5fa75f;
+  color: #fff;
+  cursor: pointer;
 }
-#topControls {
-  position:absolute;
-  top:16px;
-  right:16px;
-  display:none;
-  gap:10px;
-  z-index:25;
-}
-#topControls button {
-  font-size:16px;
-  padding:8px 14px;
-  min-height:unset;
+button:hover {
+  background: #6dc56d;
 }
 #loginError {
-  min-height:24px;
-  margin-top:6px;
-  color:#ff9a9a;
+  min-height: 24px;
+  color: #ffb7b7;
+  margin-top: 10px;
+}
+.note {
+  opacity: 0.85;
+  font-size: 14px;
+}
+ul {
+  margin: 8px 0 0 18px;
+  padding: 0;
+}
+li {
+  margin: 7px 0;
 }
 </style>
 </head>
 <body>
-<canvas id="gameCanvas"></canvas>
+  <div class="page">
+    <h1>Medieval Pixel Cart</h1>
+    <div class="layout">
+      <section class="panel">
+        <h2>Login</h2>
+        <p>Enter your account to play.</p>
+        <input id="usernameInput" type="text" placeholder="Username" autocomplete="username">
+        <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password">
+        <button id="loginButton">Start Game</button>
+        <div id="loginError"></div>
+        <p class="note">Credentials are no longer shown on-screen.</p>
+      </section>
 
-<div id="authScreen" class="overlay">
-  <div class="panel">
-    <h1>Login</h1>
-    <input id="usernameInput" type="text" placeholder="Username" autocomplete="username">
-    <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password">
-    <button id="loginButton">Login</button>
-    <div id="loginError"></div>
-    <p>Player: <b>mermy / wolf</b><br>Admin: <b>admin / admin</b></p>
+      <section class="panel">
+        <h2>Patch Notes</h2>
+        <p><strong>Last update:</strong> March 23, 2026</p>
+        <ul>
+          <li>Separated login page from gameplay page.</li>
+          <li>Added persistent per-user level unlocks and admin full-level access.</li>
+          <li>Changed progression so each level needs 3000 score to unlock the next.</li>
+          <li>Added in-game mute toggle and bug report flow.</li>
+          <li>Bug report system now supports Telegram bot endpoint wiring for future setup.</li>
+        </ul>
+      </section>
+    </div>
   </div>
-</div>
 
-<div id="levelMenu" class="overlay" style="display:none;">
-  <div class="panel">
-    <h2 id="menuTitle">Select Level</h2>
-    <p id="menuSubtitle"></p>
-    <div id="levelButtons"></div>
-    <button id="continueButton" onclick="closeLevelMenu()" style="display:none; margin-bottom:10px;">Continue</button>
-    <button onclick="logout()">Logout</button>
-  </div>
-</div>
-
-<div id="topControls">
-  <button onclick="openLevelMenu()">Levels</button>
-  <button onclick="logout()">Logout</button>
-</div>
-
-<div id="ui">
-  <div id="result"></div>
-  <button onclick="restartGame()">Restart</button>
-  <button onclick="openLevelMenu()">Level Menu</button>
-</div>
-
-<script src="game.js"></script>
+  <script src="login.js"></script>
 </body>
 </html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Medieval Pixel Cart - Game</title>
+<style>
+body { margin:0; background:#2c5e2c; overflow:hidden; touch-action: manipulation; font-family: Arial, sans-serif; }
+canvas { display:block; width:100vw; height:100vh; image-rendering: pixelated; touch-action: manipulation; }
+#ui {
+  position:absolute;
+  top:40%;
+  width:100%;
+  text-align:center;
+  color:white;
+  font-size:28px;
+  display:none;
+  z-index:20;
+}
+button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manipulation; border:0; border-radius:8px; cursor:pointer; }
+.overlay {
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0, 0, 0, 0.65);
+  z-index:30;
+}
+.panel {
+  width:min(92vw, 460px);
+  background:rgba(25, 25, 25, 0.95);
+  color:#fff;
+  padding:22px;
+  border-radius:12px;
+  text-align:center;
+}
+.panel h2 {
+  margin:0 0 12px;
+}
+.panel p {
+  margin:6px 0 14px;
+}
+#levelButtons {
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:10px;
+  margin:14px 0;
+}
+#levelButtons button {
+  width:100%;
+}
+#topControls {
+  position:absolute;
+  top:16px;
+  right:16px;
+  display:none;
+  gap:10px;
+  z-index:25;
+}
+#topControls button {
+  font-size:16px;
+  padding:8px 14px;
+  min-height:unset;
+}
+#bugReportModal {
+  display:none;
+  z-index:40;
+}
+#bugReportInput {
+  width:100%;
+  min-height:120px;
+  box-sizing:border-box;
+  font-size:16px;
+  margin:10px 0;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #999;
+  resize:vertical;
+}
+#bugReportStatus {
+  min-height:24px;
+  margin:6px 0;
+  color:#ffd58f;
+  font-size:15px;
+}
+.modalActions {
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="levelMenu" class="overlay" style="display:none;">
+  <div class="panel">
+    <h2 id="menuTitle">Select Level</h2>
+    <p id="menuSubtitle"></p>
+    <div id="levelButtons"></div>
+    <button id="continueButton" onclick="closeLevelMenu()" style="display:none; margin-bottom:10px;">Continue</button>
+    <button id="muteButton" onclick="toggleMute()" style="margin-bottom:10px;">Mute: Off</button>
+    <button onclick="openBugReport()" style="margin-bottom:10px;">Report a Bug</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div id="bugReportModal" class="overlay">
+  <div class="panel">
+    <h2>Report a Bug</h2>
+    <p>Describe what happened. This will be sent to the Telegram bot endpoint when configured.</p>
+    <textarea id="bugReportInput" placeholder="What bug did you find?"></textarea>
+    <div id="bugReportStatus"></div>
+    <div class="modalActions">
+      <button onclick="sendBugReport()">Send Report</button>
+      <button onclick="closeBugReport()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="topControls">
+  <button onclick="openLevelMenu()">Levels</button>
+  <button id="topMuteButton" onclick="toggleMute()">Mute: Off</button>
+  <button onclick="openBugReport()">Report Bug</button>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<div id="ui">
+  <div id="result"></div>
+  <button onclick="restartGame()">Restart</button>
+  <button onclick="openLevelMenu()">Level Menu</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

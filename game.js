@@ -5,19 +5,19 @@ const ctx = canvas.getContext("2d");
 
 const ui = document.getElementById("ui");
 const resultText = document.getElementById("result");
-const authScreen = document.getElementById("authScreen");
 const levelMenu = document.getElementById("levelMenu");
 const topControls = document.getElementById("topControls");
-const loginButton = document.getElementById("loginButton");
-const usernameInput = document.getElementById("usernameInput");
-const passwordInput = document.getElementById("passwordInput");
-const loginError = document.getElementById("loginError");
 const menuTitle = document.getElementById("menuTitle");
 const menuSubtitle = document.getElementById("menuSubtitle");
 const levelButtons = document.getElementById("levelButtons");
 const continueButton = document.getElementById("continueButton");
+const muteButton = document.getElementById("muteButton");
+const topMuteButton = document.getElementById("topMuteButton");
+const bugReportModal = document.getElementById("bugReportModal");
+const bugReportInput = document.getElementById("bugReportInput");
+const bugReportStatus = document.getElementById("bugReportStatus");
 
-/* ================= AUTH ================= */
+/* ================= AUTH / SESSION ================= */
 
 const USERS = {
   mermy: { password: "wolf", isAdmin: false },
@@ -26,11 +26,15 @@ const USERS = {
 
 const LEVEL_COUNT = 4;
 const STORAGE_PREFIX = "medieval_pixel_cart_progress_v1_";
+const SESSION_KEY = "medieval_pixel_cart_active_user_v1";
+const BOT_ENDPOINT_KEY = "medieval_pixel_cart_bot_endpoint_v1";
+const LEVEL_UP_SCORE = 3000;
 
 let currentUser = null;
 let isAdminUser = false;
 let unlockedLevel = 1;
 let hasStartedLevel = false;
+let isMuted = false;
 
 function progressStorageKey(username) {
   return STORAGE_PREFIX + username;
@@ -74,114 +78,38 @@ function canAccessLevel(level) {
   return isAdminUser || level <= unlockedLevel;
 }
 
-function isElementVisible(element) {
-  return window.getComputedStyle(element).display !== "none";
-}
-
-function renderLevelMenu() {
-  if (!currentUser) return;
-  menuTitle.textContent = isAdminUser ? "Admin Level Menu" : "Select Level";
-  menuSubtitle.textContent = isAdminUser
-    ? `Logged in as admin. All ${LEVEL_COUNT} levels are unlocked.`
-    : `Logged in as ${currentUser}. Unlocked up to Level ${unlockedLevel}.`;
-  levelButtons.innerHTML = "";
-
-  for (let level = 1; level <= LEVEL_COUNT; level++) {
-    const unlocked = canAccessLevel(level);
-    const button = document.createElement("button");
-    const isCurrent = hasStartedLevel && level === currentLevel;
-    button.textContent = unlocked
-      ? `Level ${level}${isCurrent ? " (Current)" : ""}`
-      : `Level ${level} (Locked)`;
-    button.disabled = !unlocked;
-    button.addEventListener("click", () => selectLevel(level));
-    levelButtons.appendChild(button);
+function ensureSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.username !== "string" || typeof parsed.password !== "string") {
+      return false;
+    }
+    const account = USERS[parsed.username];
+    if (!account || account.password !== parsed.password) {
+      return false;
+    }
+    currentUser = parsed.username;
+    isAdminUser = account.isAdmin;
+    if (isAdminUser) {
+      unlockedLevel = LEVEL_COUNT;
+      currentLevel = 1;
+    } else {
+      const progress = loadUserProgress(currentUser);
+      unlockedLevel = progress.unlockedLevel;
+      currentLevel = progress.lastLevel;
+    }
+    return true;
+  } catch (error) {
+    return false;
   }
 }
 
-function selectLevel(level) {
-  if (!canAccessLevel(level)) return;
-  hasStartedLevel = true;
-  ui.style.display = "none";
-  levelMenu.style.display = "none";
-  loadLevel(level);
+function clearSessionAndGoLogin() {
+  localStorage.removeItem(SESSION_KEY);
+  window.location.href = "index.html";
 }
-
-function openLevelMenu() {
-  if (!currentUser) return;
-  renderLevelMenu();
-  continueButton.style.display = hasStartedLevel && gameState !== "lose" ? "inline-block" : "none";
-  levelMenu.style.display = "flex";
-  if (gameState === "playing") {
-    gameState = "paused";
-  }
-}
-
-function closeLevelMenu() {
-  if (!currentUser) return;
-  levelMenu.style.display = "none";
-  if (hasStartedLevel && gameState !== "lose") {
-    gameState = "playing";
-  }
-}
-
-function handleLogin() {
-  const username = usernameInput.value.trim();
-  const password = passwordInput.value;
-  const account = USERS[username];
-
-  if (!account || account.password !== password) {
-    loginError.textContent = "Wrong username or password.";
-    return;
-  }
-
-  currentUser = username;
-  isAdminUser = account.isAdmin;
-  hasStartedLevel = false;
-
-  if (isAdminUser) {
-    unlockedLevel = LEVEL_COUNT;
-    currentLevel = 1;
-  } else {
-    const progress = loadUserProgress(username);
-    unlockedLevel = progress.unlockedLevel;
-    currentLevel = progress.lastLevel;
-  }
-
-  loginError.textContent = "";
-  passwordInput.value = "";
-  authScreen.style.display = "none";
-  topControls.style.display = "flex";
-  gameState = "paused";
-  openLevelMenu();
-}
-
-function logout() {
-  currentUser = null;
-  isAdminUser = false;
-  unlockedLevel = 1;
-  hasStartedLevel = false;
-  gameState = "paused";
-  ui.style.display = "none";
-  levelMenu.style.display = "none";
-  topControls.style.display = "none";
-  authScreen.style.display = "flex";
-  loginError.textContent = "";
-  usernameInput.value = "";
-  passwordInput.value = "";
-  activeCarts = [];
-  score = 0;
-  lives = 3;
-  spawnTimer = 0;
-}
-
-loginButton.addEventListener("click", handleLogin);
-usernameInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") handleLogin();
-});
-passwordInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") handleLogin();
-});
 
 /* ================= WORLD ================= */
 
@@ -213,7 +141,6 @@ function getTapRadius() {
 const BASE_SPEED = 2.0;
 const SPEED_INCREMENT = 0.15;
 const SPAWN_DELAY = 200;
-const LEVEL_UP_SCORE = 3000;
 
 /* ================= LOADERS ================= */
 
@@ -258,9 +185,21 @@ const sounds = {
   castle: loadSound("castle.mp3")
 };
 
+function applyMuteState() {
+  Object.values(sounds).forEach(s => {
+    s.muted = isMuted;
+  });
+  const label = isMuted ? "Unmute" : "Mute";
+  muteButton.textContent = label;
+  if (topMuteButton) {
+    topMuteButton.textContent = label;
+  }
+}
+
 /* ===== UNLOCK AUDIO (CRITICAL FOR BROWSERS) ===== */
 
 function unlockAudio() {
+  if (isMuted) return;
   Object.values(sounds).forEach(s => {
     s.play().then(() => {
       s.pause();
@@ -436,6 +375,121 @@ if (window.visualViewport) {
 }
 resize();
 
+/* ================= LEVEL MENU ================= */
+
+function renderLevelMenu() {
+  menuTitle.textContent = isAdminUser ? "Admin Level Menu" : "Select Level";
+  menuSubtitle.textContent = isAdminUser
+    ? `Logged in as admin. All ${LEVEL_COUNT} levels are unlocked.`
+    : `Logged in as ${currentUser}. Unlocked up to Level ${unlockedLevel}.`;
+  levelButtons.innerHTML = "";
+
+  for (let level = 1; level <= LEVEL_COUNT; level++) {
+    const unlocked = canAccessLevel(level);
+    const button = document.createElement("button");
+    const isCurrent = hasStartedLevel && level === currentLevel;
+    button.textContent = unlocked
+      ? `Level ${level}${isCurrent ? " (Current)" : ""}`
+      : `Level ${level} (Locked)`;
+    button.disabled = !unlocked;
+    button.addEventListener("click", () => selectLevel(level));
+    levelButtons.appendChild(button);
+  }
+}
+
+function selectLevel(level) {
+  if (!canAccessLevel(level)) return;
+  hasStartedLevel = true;
+  ui.style.display = "none";
+  levelMenu.style.display = "none";
+  loadLevel(level);
+}
+
+function openLevelMenu() {
+  renderLevelMenu();
+  continueButton.style.display = hasStartedLevel && gameState !== "lose" ? "inline-block" : "none";
+  levelMenu.style.display = "flex";
+  if (gameState === "playing") {
+    gameState = "paused";
+  }
+}
+
+function closeLevelMenu() {
+  levelMenu.style.display = "none";
+  if (hasStartedLevel && gameState !== "lose") {
+    gameState = "playing";
+  }
+}
+
+function logout() {
+  clearSessionAndGoLogin();
+}
+
+/* ================= BUG REPORT ================= */
+
+function openBugReport() {
+  if (gameState === "playing") {
+    gameState = "paused";
+  }
+  bugReportInput.value = "";
+  bugReportStatus.textContent = "";
+  bugReportModal.style.display = "flex";
+}
+
+function closeBugReport() {
+  bugReportModal.style.display = "none";
+  if (levelMenu.style.display === "none" && hasStartedLevel && gameState !== "lose") {
+    gameState = "playing";
+  }
+}
+
+async function sendBugReport() {
+  const message = bugReportInput.value.trim();
+  if (!message) {
+    bugReportStatus.textContent = "Please describe the bug before sending.";
+    return;
+  }
+
+  const payload = {
+    user: currentUser,
+    isAdmin: isAdminUser,
+    level: currentLevel,
+    score: score,
+    lives: lives,
+    report: message,
+    createdAt: new Date().toISOString()
+  };
+
+  const endpoint = localStorage.getItem(BOT_ENDPOINT_KEY);
+  if (!endpoint) {
+    bugReportStatus.textContent = "Telegram bot endpoint is not configured yet. Report saved locally for now.";
+    const queueKey = "medieval_pixel_cart_bug_queue_v1";
+    const existing = JSON.parse(localStorage.getItem(queueKey) || "[]");
+    existing.push(payload);
+    localStorage.setItem(queueKey, JSON.stringify(existing));
+    return;
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      throw new Error("Request failed with status " + response.status);
+    }
+    bugReportStatus.textContent = "Bug report sent. Thanks!";
+    bugReportInput.value = "";
+  } catch (error) {
+    bugReportStatus.textContent = "Failed to send report. It was saved locally for retry later.";
+    const queueKey = "medieval_pixel_cart_bug_queue_v1";
+    const existing = JSON.parse(localStorage.getItem(queueKey) || "[]");
+    existing.push(payload);
+    localStorage.setItem(queueKey, JSON.stringify(existing));
+  }
+}
+
 /* ================= LEVEL LOAD ================= */
 
 function loadLevel(level) {
@@ -459,9 +513,7 @@ function resetGame() {
   lives = 3;
   spawnTimer = 0;
   activeCarts = [];
-  gameState = currentUser && !isElementVisible(authScreen) && !isElementVisible(levelMenu)
-    ? "playing"
-    : "paused";
+  gameState = levelMenu.style.display === "none" ? "playing" : "paused";
 
   intersections = {};
 
@@ -491,11 +543,9 @@ function resetGame() {
 /* ================= SPAWN ================= */
 
 function spawnCart() {
-
   const map = getMap();
   const destinations = Object.keys(map.buildings);
-  const randomDest =
-    destinations[Math.floor(Math.random() * destinations.length)];
+  const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
 
   const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
   const speed = BASE_SPEED + speedBoost;
@@ -515,13 +565,12 @@ function spawnCart() {
   });
 
   sounds.spawn.currentTime = 0;
-  sounds.spawn.play();
+  sounds.spawn.play().catch(() => {});
 }
 
 /* ================= UPDATE ================= */
 
 function update() {
-
   if (gameState !== "playing") return;
 
   spawnTimer++;
@@ -532,35 +581,22 @@ function update() {
 
   const map = getMap();
 
-  for (let cart of activeCarts) {
-
+  for (const cart of activeCarts) {
     cart.x += cart.vx;
     cart.y += cart.vy;
 
-    /* ===== HARD TURN AT X1016 (ALWAYS DOWN) ===== */
-
-    if (currentLevel === 2 &&
-        !cart.forcedDown &&
-        cart.x >= 1016) {
-
+    if (currentLevel === 2 && !cart.forcedDown && cart.x >= 1016) {
       cart.x = 1016;
       cart.vx = 0;
       cart.vy = cart.speed;
       cart.forcedDown = true;
     }
 
-    /* ===== INTERSECTIONS ===== */
-
     const prevX = cart.x - cart.vx;
     const prevY = cart.y - cart.vy;
 
-    for (let key in map.intersections) {
-
+    for (const key in map.intersections) {
       const node = map.intersections[key];
-
-      // Map05: wider segment radius so carts don't miss, but only turn when
-      // the segment actually crosses the center (then snap cart to center).
-      // Other maps: small radius, segment hit = turn at center.
       const radius = currentLevel === 4 ? 22 : INTERSECTION_RADIUS;
       const hit = segmentHitsCircle(
         prevX, prevY,
@@ -570,7 +606,6 @@ function update() {
       );
 
       if (hit && !cart[key]) {
-
         const dir = intersections[key];
 
         if (currentLevel === 4) {
@@ -618,30 +653,27 @@ function segmentHitsCircle(ax, ay, bx, by, cx, cy, r) {
 }
 
 function checkBuildings(cart) {
-
   const map = getMap();
   const prevX = cart.x - cart.vx;
   const prevY = cart.y - cart.vy;
   const hitRadius = 20;
 
-  for (let key in map.buildings) {
-
+  for (const key in map.buildings) {
     const node = map.buildings[key];
     const hit = Math.hypot(cart.x - node.x, cart.y - node.y) < hitRadius ||
       segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
 
     if (hit) {
-
       activeCarts = activeCarts.filter(c => c !== cart);
 
       if (key === cart.destination) {
         score += 100;
         sounds[key].currentTime = 0;
-        sounds[key].play();
+        sounds[key].play().catch(() => {});
       } else {
         lives--;
         sounds.wrong.currentTime = 0;
-        sounds.wrong.play();
+        sounds.wrong.play().catch(() => {});
         if (lives <= 0) loseGame();
       }
     }
@@ -651,7 +683,6 @@ function checkBuildings(cart) {
 /* ================= INPUT ================= */
 
 function handleTap(clientX, clientY) {
-
   if (gameState !== "playing") return;
 
   const rect = canvas.getBoundingClientRect();
@@ -661,70 +692,31 @@ function handleTap(clientX, clientY) {
   const map = getMap();
   const tapRadius = getTapRadius();
 
-  for (let key in map.intersections) {
-
+  for (const key in map.intersections) {
     const node = map.intersections[key];
     const dist = Math.hypot(worldX - node.x, worldY - node.y);
 
     if (dist < tapRadius) {
-
       if (currentLevel === 2) {
-
-        if (key === "intersection1")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
-        if (key === "intersection2")
-          intersections[key] =
-            intersections[key] === "left" ? "right" : "left";
-
-        if (key === "intersection3")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
-        if (key === "intersection4")
-          intersections[key] =
-            intersections[key] === "left" ? "down" : "left";
-
+        if (key === "intersection1") intersections[key] = intersections[key] === "up" ? "right" : "up";
+        if (key === "intersection2") intersections[key] = intersections[key] === "left" ? "right" : "left";
+        if (key === "intersection3") intersections[key] = intersections[key] === "up" ? "right" : "up";
+        if (key === "intersection4") intersections[key] = intersections[key] === "left" ? "down" : "left";
       } else if (currentLevel === 3) {
-
-        if (key === "intersection1")
-          intersections[key] =
-            intersections[key] === "up" ? "down" : "up";
-
-        if (key === "intersection2")
-          intersections[key] =
-            intersections[key] === "left" ? "right" : "left";
-
-        if (key === "intersection3")
-          intersections[key] =
-            intersections[key] === "right" ? "down" : "right";
-
-        if (key === "intersection4")
-          intersections[key] =
-            intersections[key] === "down" ? "right" : "down";
-
-        if (key === "intersection5")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
+        if (key === "intersection1") intersections[key] = intersections[key] === "up" ? "down" : "up";
+        if (key === "intersection2") intersections[key] = intersections[key] === "left" ? "right" : "left";
+        if (key === "intersection3") intersections[key] = intersections[key] === "right" ? "down" : "right";
+        if (key === "intersection4") intersections[key] = intersections[key] === "down" ? "right" : "down";
+        if (key === "intersection5") intersections[key] = intersections[key] === "up" ? "right" : "up";
       } else if (currentLevel === 4) {
-
-        if (key === "intersection1")
+        if (key === "intersection1") {
           intersections[key] =
             intersections[key] === "up" ? "left" :
             intersections[key] === "left" ? "right" : "up";
-
-        if (key === "intersection2")
-          intersections[key] =
-            intersections[key] === "up" ? "down" : "up";
-
-        if (key === "intersection3")
-          intersections[key] =
-            intersections[key] === "up" ? "left" : "up";
-
+        }
+        if (key === "intersection2") intersections[key] = intersections[key] === "up" ? "down" : "up";
+        if (key === "intersection3") intersections[key] = intersections[key] === "up" ? "left" : "up";
       } else {
-
         intersections[key] =
           intersections[key] === "up" ? "left" :
           intersections[key] === "left" ? "right" :
@@ -735,7 +727,6 @@ function handleTap(clientX, clientY) {
 }
 
 canvas.addEventListener("click", e => handleTap(e.clientX, e.clientY));
-
 canvas.addEventListener("touchend", e => {
   if (e.cancelable) e.preventDefault();
   const t = e.changedTouches[0];
@@ -745,7 +736,6 @@ canvas.addEventListener("touchend", e => {
 /* ================= DRAW ================= */
 
 function draw() {
-
   ctx.imageSmoothingEnabled = false;
   ctx.setTransform(scaleX * dpr, 0, 0, scaleY * dpr, offsetX * dpr, offsetY * dpr);
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -757,17 +747,13 @@ function draw() {
 }
 
 function drawArrows() {
-
   const map = getMap();
-
-  for (let key in map.intersections) {
-
+  for (const key in map.intersections) {
     const node = map.intersections[key];
     const state = intersections[key];
 
     let img = arrowUpImg;
     let rotation = 0;
-
     if (state === "left") img = arrowLeftImg;
     if (state === "right") img = arrowRightImg;
     if (state === "down") {
@@ -778,17 +764,14 @@ function drawArrows() {
     ctx.save();
     ctx.translate(node.x, node.y);
     ctx.rotate(rotation);
-    ctx.drawImage(img, -ARROW_SIZE/2, -ARROW_SIZE/2, ARROW_SIZE, ARROW_SIZE);
+    ctx.drawImage(img, -ARROW_SIZE / 2, -ARROW_SIZE / 2, ARROW_SIZE, ARROW_SIZE);
     ctx.restore();
   }
 }
 
 function drawCarts() {
-
-  for (let cart of activeCarts) {
-
+  for (const cart of activeCarts) {
     let rotation = 0;
-
     if (cart.vy > 0) rotation = 0;
     else if (cart.vy < 0) rotation = Math.PI;
     else if (cart.vx < 0) rotation = Math.PI / 2;
@@ -797,7 +780,7 @@ function drawCarts() {
     ctx.save();
     ctx.translate(cart.x, cart.y);
     ctx.rotate(rotation);
-    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
+    ctx.drawImage(cart.img, -CART_SIZE / 2, -CART_SIZE / 2, CART_SIZE, CART_SIZE);
     ctx.restore();
   }
 }
@@ -823,19 +806,24 @@ function restartGame() {
   resetGame();
 }
 
+function toggleMute() {
+  isMuted = !isMuted;
+  applyMuteState();
+}
+
 function loop() {
   update();
   draw();
   requestAnimationFrame(loop);
 }
 
-loadLevel(1);
-gameState = "paused";
-requestAnimationFrame(loop);
-
-window.addEventListener("load", () => {
+if (!ensureSession()) {
+  clearSessionAndGoLogin();
+} else {
+  topControls.style.display = "flex";
   loadLevel(currentLevel);
-  authScreen.style.display = "flex";
-  levelMenu.style.display = "none";
-  topControls.style.display = "none";
-});
+  gameState = "paused";
+  openLevelMenu();
+  applyMuteState();
+  requestAnimationFrame(loop);
+}
