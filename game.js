@@ -12,7 +12,6 @@ const menuSubtitle = document.getElementById("menuSubtitle");
 const levelButtons = document.getElementById("levelButtons");
 const continueButton = document.getElementById("continueButton");
 const muteButton = document.getElementById("muteButton");
-const topMuteButton = document.getElementById("topMuteButton");
 const bugReportModal = document.getElementById("bugReportModal");
 const bugReportInput = document.getElementById("bugReportInput");
 const bugReportStatus = document.getElementById("bugReportStatus");
@@ -191,9 +190,6 @@ function applyMuteState() {
   });
   const label = isMuted ? "Unmute" : "Mute";
   muteButton.textContent = label;
-  if (topMuteButton) {
-    topMuteButton.textContent = label;
-  }
 }
 
 /* ===== UNLOCK AUDIO (CRITICAL FOR BROWSERS) ===== */
@@ -409,6 +405,7 @@ function openLevelMenu() {
   renderLevelMenu();
   continueButton.style.display = hasStartedLevel && gameState !== "lose" ? "inline-block" : "none";
   levelMenu.style.display = "flex";
+  topControls.style.display = "none";
   if (gameState === "playing") {
     gameState = "paused";
   }
@@ -416,6 +413,7 @@ function openLevelMenu() {
 
 function closeLevelMenu() {
   levelMenu.style.display = "none";
+  topControls.style.display = "flex";
   if (hasStartedLevel && gameState !== "lose") {
     gameState = "playing";
   }
@@ -440,6 +438,7 @@ function closeBugReport() {
   bugReportModal.style.display = "none";
   if (levelMenu.style.display === "none" && hasStartedLevel && gameState !== "lose") {
     gameState = "playing";
+    topControls.style.display = "flex";
   }
 }
 
@@ -799,10 +798,12 @@ function loseGame() {
   gameState = "lose";
   resultText.innerText = "GAME OVER";
   ui.style.display = "block";
+  topControls.style.display = "none";
 }
 
 function restartGame() {
   ui.style.display = "none";
+  topControls.style.display = "flex";
   resetGame();
 }
 
