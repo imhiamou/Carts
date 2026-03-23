@@ -28,6 +28,7 @@ const STORAGE_PREFIX = "medieval_pixel_cart_progress_v1_";
 const SESSION_KEY = "medieval_pixel_cart_active_user_v1";
 const BOT_TOKEN = "8799580976:AAHTYpiZZSKRNrhwRh0wqXHsm4rET9Og_vE";
 const BOT_CHAT_ID_KEY = "medieval_pixel_cart_bot_chat_id_v1";
+const BOT_CHAT_ID_FALLBACK = "6802357894";
 const LEVEL_UP_SCORE = 3000;
 
 let currentUser = null;
@@ -456,7 +457,10 @@ async function detectBotChatId() {
   const updatesJson = await updatesResp.json();
   const updates = Array.isArray(updatesJson.result) ? updatesJson.result : [];
   const latest = updates.reverse().find(item => item?.message?.chat?.id);
-  if (!latest) return null;
+  if (!latest) {
+    localStorage.setItem(BOT_CHAT_ID_KEY, BOT_CHAT_ID_FALLBACK);
+    return BOT_CHAT_ID_FALLBACK;
+  }
 
   const chatId = String(latest.message.chat.id);
   localStorage.setItem(BOT_CHAT_ID_KEY, chatId);
