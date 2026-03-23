@@ -765,9 +765,24 @@ function loadLevel(level) {
   spawnTimer = 0;
   activeCarts = [];
   const map = level === 1 ? MAP02 : level === 2 ? MAP03 : level === 3 ? MAP04 : MAP05;
-  mapImg.src = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
+  const nextSrc = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
+  const resolvedSrc = new URL(nextSrc, window.location.href).href;
 
-  mapImg.onload = () => resetGame();
+  const finishLevelLoad = () => {
+    mapImg.onload = null;
+    mapImg.onerror = null;
+    resetGame();
+  };
+
+  // If the same map is already loaded from cache, onload may not fire again.
+  if (mapImg.src === resolvedSrc && mapImg.complete && mapImg.naturalWidth > 0) {
+    finishLevelLoad();
+    return;
+  }
+
+  mapImg.onload = finishLevelLoad;
+  mapImg.onerror = finishLevelLoad;
+  mapImg.src = nextSrc;
 }
 
 /* ================= RESET ================= */
