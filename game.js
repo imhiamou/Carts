@@ -26,7 +26,8 @@ const USERS = {
 const LEVEL_COUNT = 4;
 const STORAGE_PREFIX = "medieval_pixel_cart_progress_v1_";
 const SESSION_KEY = "medieval_pixel_cart_active_user_v1";
-const BOT_ENDPOINT_KEY = "medieval_pixel_cart_bot_endpoint_v1";
+const BOT_TOKEN = "8799580976:AAHTYpiZZSKRNrhwRh0wqXHsm4rET9Og_vE";
+const BOT_CHAT_ID_KEY = "medieval_pixel_cart_bot_chat_id_v1";
 const LEVEL_UP_SCORE = 3000;
 
 let currentUser = null;
@@ -443,6 +444,45 @@ function closeBugReport() {
   }
 }
 
+async function detectBotChatId() {
+  const existing = localStorage.getItem(BOT_CHAT_ID_KEY);
+  if (existing) return existing;
+
+  const updatesResp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=10`);
+  if (!updatesResp.ok) {
+    throw new Error("Unable to read Telegram updates");
+  }
+
+  const updatesJson = await updatesResp.json();
+  const updates = Array.isArray(updatesJson.result) ? updatesJson.result : [];
+  const latest = updates.reverse().find(item => item?.message?.chat?.id);
+  if (!latest) return null;
+
+  const chatId = String(latest.message.chat.id);
+  localStorage.setItem(BOT_CHAT_ID_KEY, chatId);
+  return chatId;
+}
+
+async function sendToTelegram(messageText) {
+  const chatId = await detectBotChatId();
+  if (!chatId) {
+    throw new Error("No Telegram chat found yet. Send /start or any message to the bot first.");
+  }
+
+  const sendResp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: messageText
+    })
+  });
+
+  if (!sendResp.ok) {
+    throw new Error("Telegram sendMessage request failed");
+  }
+}
+
 async function sendBugReport() {
   const message = bugReportInput.value.trim();
   if (!message) {
@@ -460,30 +500,26 @@ async function sendBugReport() {
     createdAt: new Date().toISOString()
   };
 
-  const endpoint = localStorage.getItem(BOT_ENDPOINT_KEY);
-  if (!endpoint) {
-    bugReportStatus.textContent = "Telegram bot endpoint is not configured yet. Report saved locally for now.";
-    const queueKey = "medieval_pixel_cart_bug_queue_v1";
-    const existing = JSON.parse(localStorage.getItem(queueKey) || "[]");
-    existing.push(payload);
-    localStorage.setItem(queueKey, JSON.stringify(existing));
-    return;
-  }
+  const queueKey = "medieval_pixel_cart_bug_queue_v1";
 
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      throw new Error("Request failed with status " + response.status);
-    }
+    const telegramMessage = [
+      "BUG REPORT (game)",
+      `time: ${payload.createdAt}`,
+      `user: ${payload.user}${payload.isAdmin ? " (admin)" : ""}`,
+      `level: ${payload.level}`,
+      `score: ${payload.score}`,
+      `lives: ${payload.lives}`,
+      "",
+      payload.report
+    ].join("\n");
+    await sendToTelegram(telegramMessage);
     bugReportStatus.textContent = "Bug report sent. Thanks!";
     bugReportInput.value = "";
   } catch (error) {
-    bugReportStatus.textContent = "Failed to send report. It was saved locally for retry later.";
-    const queueKey = "medieval_pixel_cart_bug_queue_v1";
+    bugReportStatus.textContent = error.message.includes("No Telegram chat found")
+      ? "No bot chat found yet. Send a message to @Mermygame_bot first. Report saved locally."
+      : "Failed to send report to Telegram. It was saved locally for retry later.";
     const existing = JSON.parse(localStorage.getItem(queueKey) || "[]");
     existing.push(payload);
     localStorage.setItem(queueKey, JSON.stringify(existing));
