@@ -84,6 +84,35 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   color:#ffd58f;
   font-size:15px;
 }
+#reviveStatus {
+  min-height:24px;
+  margin-top:12px;
+  color:#ffe39f;
+  font-size:16px;
+}
+#reviveTimer {
+  min-height:20px;
+  margin-top:4px;
+  color:#fff1be;
+  font-size:14px;
+}
+#reviveModal {
+  display:none;
+  z-index:45;
+}
+#reviveVideo {
+  width:100%;
+  max-height:320px;
+  border-radius:10px;
+  background:#111;
+}
+#revivePhoto {
+  width:100%;
+  max-height:320px;
+  object-fit:cover;
+  border-radius:10px;
+  display:none;
+}
 .modalActions {
   display:flex;
   gap:10px;
@@ -116,6 +145,22 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
     <div class="modalActions">
       <button onclick="sendBugReport()">Send Report</button>
       <button onclick="closeBugReport()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="reviveModal" class="overlay">
+  <div class="panel">
+    <h2>Second Chance Revive</h2>
+    <p>Take a selfie and send it for live admin review. Owner replies YES/NO in 30s.</p>
+    <video id="reviveVideo" autoplay playsinline style="display:none;"></video>
+    <img id="revivePhoto" alt="Selfie preview">
+    <div id="reviveStatus"></div>
+    <div id="reviveTimer"></div>
+    <div class="modalActions">
+      <button id="reviveStartButton" type="button">Start Camera</button>
+      <button id="reviveCaptureButton" type="button" disabled>Capture Selfie</button>
+      <button id="reviveCancelButton" type="button">No Thanks</button>
     </div>
   </div>
 </div>

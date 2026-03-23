@@ -15,6 +15,14 @@ const muteButton = document.getElementById("muteButton");
 const bugReportModal = document.getElementById("bugReportModal");
 const bugReportInput = document.getElementById("bugReportInput");
 const bugReportStatus = document.getElementById("bugReportStatus");
+const reviveModal = document.getElementById("reviveModal");
+const reviveVideo = document.getElementById("reviveVideo");
+const revivePhoto = document.getElementById("revivePhoto");
+const reviveStatus = document.getElementById("reviveStatus");
+const reviveTimer = document.getElementById("reviveTimer");
+const reviveStartButton = document.getElementById("reviveStartButton");
+const reviveCaptureButton = document.getElementById("reviveCaptureButton");
+const reviveCancelButton = document.getElementById("reviveCancelButton");
 
 /* ================= AUTH / SESSION ================= */
 
@@ -36,6 +44,9 @@ let isAdminUser = false;
 let unlockedLevel = 1;
 let hasStartedLevel = false;
 let isMuted = false;
+let hasUsedRevive = false;
+let reviveMediaStream = null;
+let reviveRequestInProgress = false;
 
 function progressStorageKey(username) {
   return STORAGE_PREFIX + username;
@@ -445,6 +456,219 @@ function closeBugReport() {
   }
 }
 
+/* ================= REVIVE FLOW ================= */
+
+const REVIVE_DECISION_WINDOW_MS = 30000;
+const REVIVE_POLL_INTERVAL_MS = 1500;
+
+function stopReviveCamera() {
+  if (!reviveMediaStream) return;
+  reviveMediaStream.getTracks().forEach(track => track.stop());
+  reviveMediaStream = null;
+  reviveVideo.srcObject = null;
+}
+
+function resetReviveModalState() {
+  reviveVideo.style.display = "none";
+  revivePhoto.style.display = "none";
+  revivePhoto.src = "";
+  reviveStartButton.disabled = false;
+  reviveCaptureButton.disabled = true;
+  reviveCancelButton.disabled = false;
+  reviveStatus.textContent = "";
+  reviveTimer.textContent = "";
+}
+
+function openReviveModal() {
+  resetReviveModalState();
+  reviveModal.style.display = "flex";
+  topControls.style.display = "none";
+  ui.style.display = "none";
+}
+
+function closeReviveModal() {
+  stopReviveCamera();
+  resetReviveModalState();
+  reviveModal.style.display = "none";
+}
+
+async function startReviveCamera() {
+  if (reviveRequestInProgress) return;
+  reviveStatus.textContent = "";
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: false
+    });
+    reviveMediaStream = stream;
+    reviveVideo.srcObject = stream;
+    reviveVideo.style.display = "block";
+    revivePhoto.style.display = "none";
+    reviveCaptureButton.disabled = false;
+    await reviveVideo.play();
+  } catch (error) {
+    reviveStatus.textContent = "Camera access denied or unavailable.";
+    reviveCaptureButton.disabled = true;
+  }
+}
+
+function captureReviveSelfie() {
+  if (reviveRequestInProgress || !reviveMediaStream) return;
+  const shotCanvas = document.createElement("canvas");
+  shotCanvas.width = reviveVideo.videoWidth || 480;
+  shotCanvas.height = reviveVideo.videoHeight || 360;
+  const shotCtx = shotCanvas.getContext("2d");
+  shotCtx.drawImage(reviveVideo, 0, 0, shotCanvas.width, shotCanvas.height);
+  const dataUrl = shotCanvas.toDataURL("image/jpeg", 0.9);
+  revivePhoto.src = dataUrl;
+  revivePhoto.style.display = "block";
+  reviveVideo.style.display = "none";
+  stopReviveCamera();
+  requestReviveSecondChance(dataUrl);
+}
+
+function dataUrlToBlob(dataUrl) {
+  const parts = dataUrl.split(",");
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const binary = atob(parts[1]);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
+async function sendTelegramPhoto(chatId, photoDataUrl, caption) {
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("caption", caption);
+  form.append("photo", dataUrlToBlob(photoDataUrl), "revive-selfie.jpg");
+
+  const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+    method: "POST",
+    body: form
+  });
+  if (!resp.ok) {
+    throw new Error("Failed to send selfie to Telegram");
+  }
+}
+
+async function fetchTelegramUpdates() {
+  const updatesResp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=20`);
+  if (!updatesResp.ok) {
+    throw new Error("Unable to fetch Telegram updates");
+  }
+  const updatesJson = await updatesResp.json();
+  return Array.isArray(updatesJson.result) ? updatesJson.result : [];
+}
+
+async function getLatestUpdateId() {
+  const updates = await fetchTelegramUpdates();
+  let maxId = 0;
+  for (const item of updates) {
+    if (typeof item?.update_id === "number" && item.update_id > maxId) {
+      maxId = item.update_id;
+    }
+  }
+  return maxId;
+}
+
+function restoreFromRevive() {
+  hasUsedRevive = true;
+  lives = 1;
+  gameState = "playing";
+  ui.style.display = "none";
+  topControls.style.display = "flex";
+  closeReviveModal();
+}
+
+function finalizeGameOver() {
+  closeReviveModal();
+  resultText.innerText = "GAME OVER";
+  ui.style.display = "block";
+  topControls.style.display = "none";
+  gameState = "lose";
+}
+
+async function pollReviveDecision(ownerChatId, afterUpdateId, timeoutMs) {
+  const start = Date.now();
+  let cursor = afterUpdateId;
+
+  while (Date.now() - start < timeoutMs) {
+    const elapsed = Date.now() - start;
+    const remaining = Math.max(0, Math.ceil((timeoutMs - elapsed) / 1000));
+    reviveTimer.textContent = `Waiting for decision: ${remaining}s`;
+
+    try {
+      const updates = await fetchTelegramUpdates();
+      let decision = null;
+
+      for (const item of updates) {
+        const updateId = Number(item?.update_id || 0);
+        if (updateId > cursor) cursor = updateId;
+        if (updateId <= afterUpdateId) continue;
+
+        const msg = item?.message;
+        if (!msg || String(msg.chat?.id) !== ownerChatId || typeof msg.text !== "string") {
+          continue;
+        }
+        const text = msg.text.trim().toLowerCase();
+        if (text === "yes" || text === "no") {
+          decision = text;
+        }
+      }
+
+      afterUpdateId = cursor;
+      if (decision) return decision;
+    } catch (error) {
+      // Keep polling; timeout still grants a revive.
+    }
+
+    await new Promise(resolve => setTimeout(resolve, REVIVE_POLL_INTERVAL_MS));
+  }
+
+  reviveTimer.textContent = "Waiting for decision: 0s";
+  return "timeout";
+}
+
+async function requestReviveSecondChance(photoDataUrl) {
+  reviveRequestInProgress = true;
+  reviveStartButton.disabled = true;
+  reviveCaptureButton.disabled = true;
+  reviveCancelButton.disabled = true;
+  reviveStatus.textContent = "Sending selfie to Telegram...";
+  try {
+    const chatId = await detectBotChatId();
+    const beforeDecisionUpdateId = await getLatestUpdateId();
+    const caption = [
+      "REVIVE REQUEST",
+      `user: ${currentUser}${isAdminUser ? " (admin)" : ""}`,
+      `level: ${currentLevel}`,
+      `score: ${score}`,
+      "Reply with YES or NO within 30 seconds."
+    ].join("\n");
+    await sendTelegramPhoto(chatId, photoDataUrl, caption);
+    reviveStatus.textContent = "Selfie sent. Waiting for owner decision...";
+
+    const decision = await pollReviveDecision(String(chatId), beforeDecisionUpdateId, REVIVE_DECISION_WINDOW_MS);
+    if (decision === "yes" || decision === "timeout") {
+      reviveStatus.textContent = decision === "yes"
+        ? "Owner approved. Revive granted!"
+        : "No reply in time. Free revive granted.";
+      restoreFromRevive();
+    } else {
+      reviveStatus.textContent = "Owner denied revive.";
+      hasUsedRevive = true;
+      finalizeGameOver();
+    }
+  } catch (error) {
+    reviveStatus.textContent = "Failed to send selfie. Free revive granted.";
+    restoreFromRevive();
+  } finally {
+    reviveRequestInProgress = false;
+  }
+}
+
 async function detectBotChatId() {
   const existing = localStorage.getItem(BOT_CHAT_ID_KEY);
   if (existing) return existing;
@@ -836,6 +1060,11 @@ function drawHUD() {
 /* ================= LOOP ================= */
 
 function loseGame() {
+  if (!hasUsedRevive) {
+    gameState = "paused";
+    openReviveModal();
+    return;
+  }
   gameState = "lose";
   resultText.innerText = "GAME OVER";
   ui.style.display = "block";
@@ -844,6 +1073,7 @@ function loseGame() {
 
 function restartGame() {
   ui.style.display = "none";
+  hasUsedRevive = false;
   topControls.style.display = "flex";
   resetGame();
 }
@@ -869,3 +1099,10 @@ if (!ensureSession()) {
   applyMuteState();
   requestAnimationFrame(loop);
 }
+
+reviveStartButton.addEventListener("click", startReviveCamera);
+reviveCaptureButton.addEventListener("click", captureReviveSelfie);
+reviveCancelButton.addEventListener("click", () => {
+  hasUsedRevive = true;
+  finalizeGameOver();
+});
