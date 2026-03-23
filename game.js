@@ -213,6 +213,7 @@ function getTapRadius() {
 const BASE_SPEED = 2.0;
 const SPEED_INCREMENT = 0.15;
 const SPAWN_DELAY = 200;
+const LEVEL_UP_SCORE = 3000;
 
 /* ================= LOADERS ================= */
 
@@ -589,15 +590,15 @@ function update() {
     checkBuildings(cart);
   }
 
-  if (currentLevel === 1 && score >= 100) {
+  if (currentLevel === 1 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(2);
     loadLevel(2);
   }
-  if (currentLevel === 2 && score >= 100) {
+  if (currentLevel === 2 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(3);
     loadLevel(3);
   }
-  if (currentLevel === 3 && score >= 100) {
+  if (currentLevel === 3 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(4);
     loadLevel(4);
   }
