@@ -398,6 +398,7 @@ function selectLevel(level) {
   hasStartedLevel = true;
   ui.style.display = "none";
   levelMenu.style.display = "none";
+  topControls.style.display = "flex";
   loadLevel(level);
 }
 
