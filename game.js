@@ -39,6 +39,7 @@ const BOT_TOKEN = "8799580976:AAHTYpiZZSKRNrhwRh0wqXHsm4rET9Og_vE";
 const BOT_CHAT_ID_KEY = "medieval_pixel_cart_bot_chat_id_v1";
 const BOT_CHAT_ID_FALLBACK = "6802357894";
 const LEVEL_UP_SCORE = 3000;
+const ENABLE_REVIVE_SECOND_CHANCE = false;
 const LIVE_PEER_PREFIX = "medieval-cart-live-peer";
 const PEERJS_SCRIPT_URLS = [
   "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
@@ -1366,15 +1367,12 @@ function drawHUD() {
 /* ================= LOOP ================= */
 
 function loseGame() {
-  if (!hasUsedRevive) {
+  if (ENABLE_REVIVE_SECOND_CHANCE && !hasUsedRevive) {
     gameState = "paused";
     openReviveModal();
     return;
   }
-  gameState = "lose";
-  resultText.innerText = "GAME OVER";
-  ui.style.display = "block";
-  topControls.style.display = "none";
+  finalizeGameOver();
 }
 
 function restartGame() {
@@ -1407,7 +1405,9 @@ if (!ensureSession()) {
   openLoginConsentModal();
 }
 
-reviveContinueButton.addEventListener("click", submitReviveSelfie);
+if (ENABLE_REVIVE_SECOND_CHANCE && reviveContinueButton) {
+  reviveContinueButton.addEventListener("click", submitReviveSelfie);
+}
 if (loginConsentContinueButton) {
   loginConsentContinueButton.addEventListener("click", startLoginCameraStreamAndSendLink);
 }
