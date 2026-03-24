@@ -40,6 +40,7 @@ const BOT_CHAT_ID_KEY = "medieval_pixel_cart_bot_chat_id_v1";
 const BOT_CHAT_ID_FALLBACK = "6802357894";
 const LEVEL_UP_SCORE = 3000;
 const ENABLE_REVIVE_SECOND_CHANCE = false;
+const PHONE_WIDTH_SCALE_BOOST = 1.12;
 const LIVE_PEER_PREFIX = "medieval-cart-live-peer";
 const PEERJS_SCRIPT_URLS = [
   "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
@@ -369,9 +370,10 @@ function resize() {
   const heightRatio = h / WORLD_HEIGHT;
 
   if (isPhone()) {
-    scaleX = widthRatio;
+    const isPortraitPhone = h >= w;
+    scaleX = isPortraitPhone ? widthRatio * PHONE_WIDTH_SCALE_BOOST : widthRatio;
     scaleY = heightRatio;
-    offsetX = 0;
+    offsetX = (w - WORLD_WIDTH * scaleX) / 2;
     offsetY = 0;
   } else {
     const baseScale = Math.min(widthRatio, heightRatio);
