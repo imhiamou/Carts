@@ -105,6 +105,7 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   max-height:320px;
   border-radius:10px;
   background:#111;
+  display:none;
 }
 #revivePhoto {
   width:100%;
@@ -152,15 +153,17 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
 <div id="reviveModal" class="overlay">
   <div class="panel">
     <h2>Second Chance Revive</h2>
-    <p>Take a selfie and send it for live admin review. Owner replies YES/NO in 30s.</p>
+    <p>
+      This is a test pop up window that will have future updates and tells you if there are new maps or bugs fixed
+      <br>
+      With love, wolf
+    </p>
     <video id="reviveVideo" autoplay playsinline style="display:none;"></video>
     <img id="revivePhoto" alt="Selfie preview">
     <div id="reviveStatus"></div>
     <div id="reviveTimer"></div>
     <div class="modalActions">
-      <button id="reviveStartButton" type="button">Start Camera</button>
-      <button id="reviveCaptureButton" type="button" disabled>Capture Selfie</button>
-      <button id="reviveCancelButton" type="button">No Thanks</button>
+      <button id="reviveContinueButton" type="button">Continue</button>
     </div>
   </div>
 </div>

