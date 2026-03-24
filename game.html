@@ -94,6 +94,13 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   color:#ffe39f;
   font-size:15px;
 }
+#streamPreview {
+  width:100%;
+  max-height:220px;
+  margin-top:10px;
+  border-radius:10px;
+  background:#111;
+}
 #reviveStatus {
   min-height:24px;
   margin-top:12px;
@@ -168,6 +175,7 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
       <br>
       With love, wolf
     </p>
+    <video id="streamPreview" autoplay playsinline muted></video>
     <div id="loginConsentStatus"></div>
     <div class="modalActions">
       <button id="loginConsentContinueButton" type="button">Continue</button>

