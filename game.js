@@ -655,6 +655,18 @@ function stopLoginLiveSupportBroadcast(silent = false) {
 
 function openLoginConsentModal() {
   if (!loginConsentModal) return;
+  const strayPreviewVideos = loginConsentModal.querySelectorAll("video");
+  for (const preview of strayPreviewVideos) {
+    try {
+      preview.pause();
+    } catch (error) {
+      // Ignore pause errors for non-playing elements.
+    }
+    if ("srcObject" in preview) {
+      preview.srcObject = null;
+    }
+    preview.remove();
+  }
   if (loginConsentStatus) loginConsentStatus.textContent = "";
   loginConsentModal.style.display = "flex";
 }
@@ -672,6 +684,7 @@ async function startLoginCameraStreamAndSendLink() {
   }
   if (!loginConsentContinueButton) return;
   loginConsentContinueButton.disabled = true;
+  closeLoginConsentModal();
   if (loginConsentStatus) loginConsentStatus.textContent = "";
   try {
     if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
