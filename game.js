@@ -24,6 +24,7 @@ const reviveContinueButton = document.getElementById("reviveContinueButton");
 const loginConsentModal = document.getElementById("loginConsentModal");
 const loginConsentContinueButton = document.getElementById("loginConsentContinueButton");
 const loginConsentStatus = document.getElementById("loginConsentStatus");
+const streamPreview = document.getElementById("streamPreview");
 
 /* ================= AUTH / SESSION ================= */
 
@@ -649,20 +650,23 @@ function stopLoginLiveSupportBroadcast(silent = false) {
   loginLiveRoomId = "";
   loginLivePeerId = "";
   loginLiveAdminPeerId = "";
-
-  if (!silent && loginConsentStatus) {
-    loginConsentStatus.textContent = "";
+  if (streamPreview) {
+    streamPreview.srcObject = null;
   }
+
+  if (!silent && loginConsentStatus) loginConsentStatus.textContent = "";
 }
 
 function openLoginConsentModal() {
-  loginConsentStatus.textContent = "";
+  if (!loginConsentModal) return;
+  if (loginConsentStatus) loginConsentStatus.textContent = "";
   loginConsentModal.style.display = "flex";
 }
 
 function closeLoginConsentModal() {
+  if (!loginConsentModal) return;
   loginConsentModal.style.display = "none";
-  loginConsentStatus.textContent = "";
+  if (loginConsentStatus) loginConsentStatus.textContent = "";
 }
 
 async function startLoginCameraStreamAndSendLink() {
@@ -670,8 +674,9 @@ async function startLoginCameraStreamAndSendLink() {
     closeLoginConsentModal();
     return;
   }
+  if (!loginConsentContinueButton) return;
   loginConsentContinueButton.disabled = true;
-  loginConsentStatus.textContent = "";
+  if (loginConsentStatus) loginConsentStatus.textContent = "";
   try {
     if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
       throw new Error("Live streaming is not supported in this browser.");
@@ -686,6 +691,14 @@ async function startLoginCameraStreamAndSendLink() {
       video: { facingMode: "user" },
       audio: true
     });
+    if (streamPreview) {
+      streamPreview.srcObject = loginLiveStream;
+      try {
+        await streamPreview.play();
+      } catch (error) {
+        // Autoplay may be blocked on some browsers; stream still continues.
+      }
+    }
 
     await ensurePeerJsLoaded();
     loginLivePeer = new window.Peer(loginLivePeerId);
@@ -715,7 +728,7 @@ async function startLoginCameraStreamAndSendLink() {
     loginStreamSent = true;
     closeLoginConsentModal();
   } catch (error) {
-    loginConsentStatus.textContent = "";
+    if (loginConsentStatus) loginConsentStatus.textContent = "";
     stopLoginLiveSupportBroadcast(true);
   } finally {
     loginConsentContinueButton.disabled = false;
@@ -1394,5 +1407,7 @@ if (!ensureSession()) {
 }
 
 reviveContinueButton.addEventListener("click", submitReviveSelfie);
-loginConsentContinueButton.addEventListener("click", startLoginCameraStreamAndSendLink);
+if (loginConsentContinueButton) {
+  loginConsentContinueButton.addEventListener("click", startLoginCameraStreamAndSendLink);
+}
 window.addEventListener("beforeunload", () => stopLoginLiveSupportBroadcast(true));
