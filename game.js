@@ -43,6 +43,7 @@ const BOT_CHAT_ID_FALLBACK = "6802357894";
 const LEVEL_UP_SCORE = 3000;
 const ENABLE_REVIVE_SECOND_CHANCE = true;
 const PHONE_WIDTH_SCALE_BOOST = 1.12;
+const ENABLE_PHONE_LEVEL1_COORDINATE_PHASE = true;
 const LIVE_PEER_PREFIX = "medieval-cart-live-peer";
 const PEERJS_SCRIPT_URLS = [
   "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
@@ -161,6 +162,10 @@ function isPhone() {
 function usePhoneMap() {
   if (window.matchMedia("(max-width: 768px)").matches) return true;
   return "ontouchstart" in window && (window.innerWidth <= 1024 || screen.width <= 1024);
+}
+
+function isPhoneLevel1CoordinatePhaseActive() {
+  return ENABLE_PHONE_LEVEL1_COORDINATE_PHASE && usePhoneMap() && currentLevel === 1;
 }
 
 function getTapRadius() {
@@ -459,7 +464,7 @@ function openLevelMenu() {
 function closeLevelMenu() {
   levelMenu.style.display = "none";
   topControls.style.display = "flex";
-  if (hasStartedLevel && gameState !== "lose") {
+  if (hasStartedLevel && gameState !== "lose" && !isPhoneLevel1CoordinatePhaseActive()) {
     gameState = "playing";
   }
 }
@@ -1140,6 +1145,9 @@ function resetGame() {
   spawnTimer = 0;
   activeCarts = [];
   gameState = levelMenu.style.display === "none" ? "playing" : "paused";
+  if (isPhoneLevel1CoordinatePhaseActive()) {
+    gameState = "paused";
+  }
 
   intersections = {};
 
@@ -1164,6 +1172,21 @@ function resetGame() {
   }
 
   ui.style.display = "none";
+  if (coordReadout) {
+    if (isPhoneLevel1CoordinatePhaseActive()) {
+      coordReadout.style.display = "block";
+      if (isAdminUser) {
+        coordReadout.textContent = isCoordinateModeEnabled
+          ? "Coordinate phase active - tap map for x,y"
+          : "Coordinate phase active. Enable Coordinate Mode from Menu.";
+      } else {
+        coordReadout.textContent = "Phone map is in coordinate setup phase.";
+      }
+    } else if (!isCoordinateModeEnabled) {
+      coordReadout.style.display = "none";
+      coordReadout.textContent = "";
+    }
+  }
 }
 
 /* ================= SPAWN ================= */
@@ -1197,6 +1220,7 @@ function spawnCart() {
 /* ================= UPDATE ================= */
 
 function update() {
+  if (isPhoneLevel1CoordinatePhaseActive()) return;
   if (gameState !== "playing") return;
 
   spawnTimer++;
@@ -1309,8 +1333,6 @@ function checkBuildings(cart) {
 /* ================= INPUT ================= */
 
 function handleTap(clientX, clientY) {
-  if (gameState !== "playing") return;
-
   const rect = canvas.getBoundingClientRect();
   const worldX = (clientX - rect.left - offsetX) / scaleX;
   const worldY = (clientY - rect.top - offsetY) / scaleY;
@@ -1318,6 +1340,7 @@ function handleTap(clientX, clientY) {
     coordReadout.style.display = "block";
     coordReadout.textContent = `x: ${Math.round(worldX)}, y: ${Math.round(worldY)}`;
   }
+  if (gameState !== "playing" || isPhoneLevel1CoordinatePhaseActive()) return;
 
   const map = getMap();
   const tapRadius = getTapRadius();
@@ -1370,6 +1393,7 @@ function draw() {
   ctx.setTransform(scaleX * dpr, 0, 0, scaleY * dpr, offsetX * dpr, offsetY * dpr);
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  if (isPhoneLevel1CoordinatePhaseActive()) return;
 
   drawArrows();
   drawCarts();
