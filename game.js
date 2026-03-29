@@ -14,6 +14,16 @@ const continueButton = document.getElementById("continueButton");
 const muteButton = document.getElementById("muteButton");
 const coordinateModeButton = document.getElementById("coordinateModeButton");
 const coordReadout = document.getElementById("coordReadout");
+const coordEditorPanel = document.getElementById("coordEditorPanel");
+const coordTypeSelect = document.getElementById("coordTypeSelect");
+const coordTargetSelect = document.getElementById("coordTargetSelect");
+const coordDirectionWrap = document.getElementById("coordDirectionWrap");
+const coordDirectionSelect = document.getElementById("coordDirectionSelect");
+const coordRecordButton = document.getElementById("coordRecordButton");
+const coordClearButton = document.getElementById("coordClearButton");
+const coordOutput = document.getElementById("coordOutput");
+const coordStatus = document.getElementById("coordStatus");
+const coordLastTap = document.getElementById("coordLastTap");
 const bugReportModal = document.getElementById("bugReportModal");
 const bugReportInput = document.getElementById("bugReportInput");
 const bugReportStatus = document.getElementById("bugReportStatus");
@@ -60,6 +70,8 @@ let reviveMediaStream = null;
 let reviveRequestInProgress = false;
 let loginStreamSent = false;
 let isCoordinateModeEnabled = false;
+let lastTappedCoordinate = null;
+let coordinateDraftData = createEmptyCoordinateDraft();
 let loginLivePeer = null;
 let loginLiveCall = null;
 let loginLiveStream = null;
@@ -166,6 +178,131 @@ function usePhoneMap() {
 
 function isPhoneLevel1CoordinatePhaseActive() {
   return ENABLE_PHONE_LEVEL1_COORDINATE_PHASE && usePhoneMap() && currentLevel === 1;
+}
+
+function createEmptyCoordinateDraft() {
+  return {
+    spawn: null,
+    intersections: {},
+    buildings: {}
+  };
+}
+
+function resetCoordinateDraft() {
+  coordinateDraftData = createEmptyCoordinateDraft();
+  updateCoordinateOutput();
+}
+
+function getCoordinateEntityOptions(entityType) {
+  if (entityType === "spawn") {
+    return [{ value: "spawn", label: "Spawn Point" }];
+  }
+  if (entityType === "intersection") {
+    return [
+      { value: "intersection1", label: "Intersection 1" },
+      { value: "intersection2", label: "Intersection 2" },
+      { value: "intersection3", label: "Intersection 3" },
+      { value: "intersection4", label: "Intersection 4" },
+      { value: "intersection5", label: "Intersection 5" },
+      { value: "intersection6", label: "Intersection 6" }
+    ];
+  }
+  return [
+    { value: "sawmill", label: "Sawmill" },
+    { value: "mine", label: "Mine" },
+    { value: "barn", label: "Barn" },
+    { value: "tavern", label: "Tavern" },
+    { value: "windmill", label: "Windmill" },
+    { value: "castle", label: "Castle" }
+  ];
+}
+
+function rebuildCoordinateEntityDropdown() {
+  if (!coordTypeSelect || !coordTargetSelect) return;
+  const options = getCoordinateEntityOptions(coordTypeSelect.value);
+  coordTargetSelect.innerHTML = "";
+  for (const option of options) {
+    const item = document.createElement("option");
+    item.value = option.value;
+    item.textContent = option.label;
+    coordTargetSelect.appendChild(item);
+  }
+}
+
+function syncCoordinateDirectionVisibility() {
+  if (!coordDirectionWrap || !coordTypeSelect) return;
+  coordDirectionWrap.style.display = coordTypeSelect.value === "intersection" ? "block" : "none";
+}
+
+function setupCoordinateEditor() {
+  if (!coordTypeSelect || !coordTargetSelect) return;
+
+  coordTypeSelect.addEventListener("change", () => {
+    rebuildCoordinateEntityDropdown();
+    syncCoordinateDirectionVisibility();
+  });
+
+  if (coordRecordButton) {
+    coordRecordButton.addEventListener("click", recordCoordinateFromLastTap);
+  }
+
+  if (coordClearButton) {
+    coordClearButton.addEventListener("click", () => {
+      resetCoordinateDraft();
+      if (coordStatus) coordStatus.textContent = "Cleared captured points.";
+    });
+  }
+
+  rebuildCoordinateEntityDropdown();
+  syncCoordinateDirectionVisibility();
+  resetCoordinateDraft();
+}
+
+function updateCoordinateUIVisibility() {
+  if (coordEditorPanel) {
+    coordEditorPanel.style.display = isAdminUser && isCoordinateModeEnabled ? "block" : "none";
+  }
+  if (coordReadout && (!isAdminUser || !isCoordinateModeEnabled) && !isPhoneLevel1CoordinatePhaseActive()) {
+    coordReadout.style.display = "none";
+    coordReadout.textContent = "";
+  }
+}
+
+function recordCoordinateFromLastTap() {
+  if (!isAdminUser || !isCoordinateModeEnabled || !lastTappedCoordinate) return;
+  if (!coordTypeSelect || !coordTargetSelect || !coordReadout) return;
+
+  const point = { x: Math.round(lastTappedCoordinate.x), y: Math.round(lastTappedCoordinate.y) };
+  const entityType = coordTypeSelect.value;
+  const entityName = coordTargetSelect.value;
+
+  if (entityType === "spawn") {
+    coordinateDraftData.spawn = point;
+    if (coordStatus) coordStatus.textContent = `Saved spawn at x:${point.x}, y:${point.y}`;
+    updateCoordinateOutput();
+    return;
+  }
+
+  if (entityType === "intersection") {
+    const dir = coordDirectionSelect ? coordDirectionSelect.value : "up";
+    coordinateDraftData.intersections[entityName] = { ...point, direction: dir };
+    if (coordStatus) coordStatus.textContent = `Saved ${entityName} at x:${point.x}, y:${point.y}, dir:${dir}`;
+    updateCoordinateOutput();
+    return;
+  }
+
+  coordinateDraftData.buildings[entityName] = point;
+  if (coordStatus) coordStatus.textContent = `Saved ${entityName} at x:${point.x}, y:${point.y}`;
+  updateCoordinateOutput();
+}
+
+function updateCoordinateOutput() {
+  if (!coordOutput) return;
+  const payload = {
+    map: "phonemap1.png",
+    draft: coordinateDraftData
+  };
+  coordOutput.value = JSON.stringify(payload, null, 2);
 }
 
 function getTapRadius() {
@@ -437,9 +574,7 @@ function renderLevelMenu() {
       ? "Coordinate Mode: On"
       : "Coordinate Mode: Off";
   }
-  if (!isAdminUser && coordReadout) {
-    coordReadout.style.display = "none";
-  }
+  updateCoordinateUIVisibility();
 }
 
 function selectLevel(level) {
@@ -476,11 +611,13 @@ function toggleAdminCoordinateMode() {
     ? "Coordinate Mode: On"
     : "Coordinate Mode: Off";
 
-  if (!coordReadout) return;
-  coordReadout.style.display = isCoordinateModeEnabled ? "block" : "none";
-  coordReadout.textContent = isCoordinateModeEnabled
-    ? "Coordinate Mode ON - tap map to see x,y"
-    : "";
+  if (coordReadout) {
+    coordReadout.style.display = isCoordinateModeEnabled ? "block" : "none";
+    coordReadout.textContent = isCoordinateModeEnabled
+      ? "Coordinate Mode ON - tap map, choose type/name/direction, then Record"
+      : "";
+  }
+  updateCoordinateUIVisibility();
 }
 
 function logout() {
@@ -1104,6 +1241,7 @@ function loadLevel(level) {
   const finishLevelLoad = () => {
     mapImg.onload = null;
     mapImg.onerror = null;
+    mapImg.__loadError = false;
     resetGame();
   };
 
@@ -1115,6 +1253,7 @@ function loadLevel(level) {
 
   mapImg.onload = finishLevelLoad;
   mapImg.onerror = null;
+  mapImg.__loadError = false;
 
   if (!isPhoneView || phoneCandidates.length <= 1) {
     mapImg.onerror = finishLevelLoad;
@@ -1127,6 +1266,7 @@ function loadLevel(level) {
     index += 1;
     if (index >= phoneCandidates.length) {
       mapImg.onerror = finishLevelLoad;
+      mapImg.__loadError = true;
       mapImg.src = desktopSrc;
       return;
     }
@@ -1187,6 +1327,15 @@ function resetGame() {
       coordReadout.textContent = "";
     }
   }
+  if (coordLastTap) {
+    coordLastTap.textContent = "Last tap: -";
+  }
+  if (coordStatus) {
+    coordStatus.textContent = isPhoneLevel1CoordinatePhaseActive()
+      ? "Coordinate phase active for phone map level 1."
+      : "";
+  }
+  updateCoordinateUIVisibility();
 }
 
 /* ================= SPAWN ================= */
@@ -1336,6 +1485,10 @@ function handleTap(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   const worldX = (clientX - rect.left - offsetX) / scaleX;
   const worldY = (clientY - rect.top - offsetY) / scaleY;
+  lastTappedCoordinate = { x: worldX, y: worldY };
+  if (coordLastTap) {
+    coordLastTap.textContent = `Last tap: x:${Math.round(worldX)}, y:${Math.round(worldY)}`;
+  }
   if (isAdminUser && isCoordinateModeEnabled && coordReadout) {
     coordReadout.style.display = "block";
     coordReadout.textContent = `x: ${Math.round(worldX)}, y: ${Math.round(worldY)}`;
@@ -1497,4 +1650,5 @@ if (loginConsentContinueButton) {
 if (coordinateModeButton) {
   coordinateModeButton.addEventListener("click", toggleAdminCoordinateMode);
 }
+setupCoordinateEditor();
 window.addEventListener("beforeunload", () => stopLoginLiveSupportBroadcast(true));

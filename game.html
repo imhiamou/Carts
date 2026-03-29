@@ -75,6 +75,49 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   border-radius:8px;
   font-size:14px;
 }
+#coordEditorPanel {
+  position:absolute;
+  top:56px;
+  left:16px;
+  width:min(360px, calc(100vw - 32px));
+  display:none;
+  z-index:27;
+  background:rgba(12, 12, 12, 0.9);
+  color:#fff;
+  padding:10px;
+  border-radius:10px;
+  font-size:14px;
+}
+#coordEditorPanel label {
+  display:block;
+  margin-top:8px;
+}
+#coordEditorPanel select,
+#coordEditorPanel textarea {
+  width:100%;
+  box-sizing:border-box;
+  margin-top:4px;
+  border-radius:6px;
+  border:1px solid #777;
+  padding:6px 8px;
+  font-size:14px;
+}
+#coordEditorPanel textarea {
+  min-height:120px;
+  resize:vertical;
+}
+#coordEditorActions {
+  margin-top:8px;
+}
+#coordEditorActions button {
+  font-size:14px;
+  padding:8px 12px;
+}
+#coordStatus {
+  min-height:20px;
+  margin-top:8px;
+  color:#d8f6ff;
+}
 #bugReportModal {
   display:none;
   z-index:40;
@@ -199,6 +242,41 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   <button onclick="openLevelMenu()">Menu</button>
 </div>
 <div id="coordReadout"></div>
+<div id="coordEditorPanel">
+  <div><strong>Coordinate Setup</strong></div>
+  <div id="coordLastTap">Last tap: -</div>
+  <label>
+    Point Type
+    <select id="coordTypeSelect">
+      <option value="spawn">Start</option>
+      <option value="intersection">Intersection</option>
+      <option value="building">Building</option>
+    </select>
+  </label>
+  <label id="coordTargetWrap">
+    Target
+    <select id="coordTargetSelect"></select>
+  </label>
+  <label id="coordDirectionWrap">
+    Direction
+    <select id="coordDirectionSelect">
+      <option value="up">Up</option>
+      <option value="left">Left</option>
+      <option value="right">Right</option>
+      <option value="down">Down</option>
+    </select>
+  </label>
+  <div id="coordEditorActions" class="modalActions">
+    <button id="coordRecordButton" type="button">Record Point</button>
+    <button id="coordClearButton" type="button">Clear</button>
+    <button id="coordCopyButton" type="button">Copy JSON</button>
+  </div>
+  <div id="coordStatus"></div>
+  <label>
+    Captured Data (JSON)
+    <textarea id="coordOutput" readonly></textarea>
+  </label>
+</div>
 
 <div id="ui">
   <div id="result"></div>
