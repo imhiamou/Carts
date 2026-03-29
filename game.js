@@ -21,6 +21,9 @@ const coordDirectionWrap = document.getElementById("coordDirectionWrap");
 const coordDirectionSelect = document.getElementById("coordDirectionSelect");
 const coordRecordButton = document.getElementById("coordRecordButton");
 const coordClearButton = document.getElementById("coordClearButton");
+const coordLinkFileButton = document.getElementById("coordLinkFileButton");
+const coordDownloadButton = document.getElementById("coordDownloadButton");
+const coordPanelToggleButton = document.getElementById("coordPanelToggleButton");
 const coordOutput = document.getElementById("coordOutput");
 const coordStatus = document.getElementById("coordStatus");
 const coordLastTap = document.getElementById("coordLastTap");
@@ -80,6 +83,11 @@ let loginLiveRoomId = "";
 let loginLivePeerId = "";
 let loginLiveAdminPeerId = "";
 let peerJsScriptPromise = null;
+const COORD_STORAGE_KEY = "medieval_pixel_cart_coord_draft_v1";
+const COORD_LINKED_FILENAME_KEY = "medieval_pixel_cart_coord_file_name_v1";
+let isCoordPanelCollapsed = false;
+let coordLinkedFileHandle = null;
+let coordFileSaveInProgress = false;
 function progressStorageKey(username) {
   return STORAGE_PREFIX + username;
 }
@@ -182,6 +190,7 @@ function isPhoneLevel1CoordinatePhaseActive() {
 
 function createEmptyCoordinateDraft() {
   return {
+    savedAt: "",
     spawn: null,
     intersections: {},
     buildings: {}
@@ -190,7 +199,42 @@ function createEmptyCoordinateDraft() {
 
 function resetCoordinateDraft() {
   coordinateDraftData = createEmptyCoordinateDraft();
+  persistCoordinateDraft();
   updateCoordinateOutput();
+}
+
+function getCoordinatePayload() {
+  return {
+    map: "phonemap1.png",
+    draft: coordinateDraftData
+  };
+}
+
+function persistCoordinateDraft() {
+  try {
+    localStorage.setItem(COORD_STORAGE_KEY, JSON.stringify(getCoordinatePayload()));
+  } catch (error) {
+    // Ignore storage write errors.
+  }
+  void autoSaveCoordinateFile(false);
+}
+
+function loadCoordinateDraft() {
+  try {
+    const raw = localStorage.getItem(COORD_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.map !== "phonemap1.png" || !parsed.draft) return false;
+    coordinateDraftData = {
+      savedAt: typeof parsed.draft.savedAt === "string" ? parsed.draft.savedAt : "",
+      spawn: parsed.draft.spawn || null,
+      intersections: parsed.draft.intersections || {},
+      buildings: parsed.draft.buildings || {}
+    };
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 function getCoordinateEntityOptions(entityType) {
@@ -253,14 +297,39 @@ function setupCoordinateEditor() {
     });
   }
 
+  if (coordLinkFileButton) {
+    coordLinkFileButton.addEventListener("click", linkCoordinateSaveFile);
+  }
+
+  if (coordDownloadButton) {
+    coordDownloadButton.addEventListener("click", downloadCoordinateDraftFile);
+  }
+
+  if (coordPanelToggleButton) {
+    coordPanelToggleButton.addEventListener("click", toggleCoordPanelCollapse);
+  }
+
   rebuildCoordinateEntityDropdown();
   syncCoordinateDirectionVisibility();
-  resetCoordinateDraft();
+  if (!loadCoordinateDraft()) {
+    resetCoordinateDraft();
+  } else {
+    updateCoordinateOutput();
+  }
+  const linkedName = localStorage.getItem(COORD_LINKED_FILENAME_KEY);
+  if (linkedName && coordStatus) {
+    coordStatus.textContent = `Saved file linked before: ${linkedName}. Link again this session to auto-save.`;
+  }
+  syncCoordPanelCollapsedUI();
 }
 
 function updateCoordinateUIVisibility() {
+  const canShowAdminEditor = isAdminUser && isCoordinateModeEnabled;
+  if (coordPanelToggleButton) {
+    coordPanelToggleButton.style.display = canShowAdminEditor ? "inline-block" : "none";
+  }
   if (coordEditorPanel) {
-    coordEditorPanel.style.display = isAdminUser && isCoordinateModeEnabled ? "block" : "none";
+    coordEditorPanel.style.display = canShowAdminEditor && !isCoordPanelCollapsed ? "block" : "none";
   }
   if (coordReadout && (!isAdminUser || !isCoordinateModeEnabled) && !isPhoneLevel1CoordinatePhaseActive()) {
     coordReadout.style.display = "none";
@@ -278,6 +347,8 @@ function recordCoordinateFromLastTap() {
 
   if (entityType === "spawn") {
     coordinateDraftData.spawn = point;
+    coordinateDraftData.savedAt = new Date().toISOString();
+    persistCoordinateDraft();
     if (coordStatus) coordStatus.textContent = `Saved spawn at x:${point.x}, y:${point.y}`;
     updateCoordinateOutput();
     return;
@@ -286,23 +357,94 @@ function recordCoordinateFromLastTap() {
   if (entityType === "intersection") {
     const dir = coordDirectionSelect ? coordDirectionSelect.value : "up";
     coordinateDraftData.intersections[entityName] = { ...point, direction: dir };
+    coordinateDraftData.savedAt = new Date().toISOString();
+    persistCoordinateDraft();
     if (coordStatus) coordStatus.textContent = `Saved ${entityName} at x:${point.x}, y:${point.y}, dir:${dir}`;
     updateCoordinateOutput();
     return;
   }
 
   coordinateDraftData.buildings[entityName] = point;
+  coordinateDraftData.savedAt = new Date().toISOString();
+  persistCoordinateDraft();
   if (coordStatus) coordStatus.textContent = `Saved ${entityName} at x:${point.x}, y:${point.y}`;
   updateCoordinateOutput();
 }
 
 function updateCoordinateOutput() {
   if (!coordOutput) return;
-  const payload = {
-    map: "phonemap1.png",
-    draft: coordinateDraftData
-  };
+  const payload = getCoordinatePayload();
   coordOutput.value = JSON.stringify(payload, null, 2);
+}
+
+function toggleCoordPanelCollapse() {
+  isCoordPanelCollapsed = !isCoordPanelCollapsed;
+  syncCoordPanelCollapsedUI();
+  updateCoordinateUIVisibility();
+}
+
+function syncCoordPanelCollapsedUI() {
+  if (!coordPanelToggleButton) return;
+  coordPanelToggleButton.textContent = isCoordPanelCollapsed ? "Show Setup" : "Hide Setup";
+}
+
+async function autoSaveCoordinateFile(showSuccessMessage) {
+  if (!coordLinkedFileHandle || coordFileSaveInProgress) return;
+  coordFileSaveInProgress = true;
+  try {
+    const writable = await coordLinkedFileHandle.createWritable();
+    await writable.write(JSON.stringify(getCoordinatePayload(), null, 2));
+    await writable.close();
+    if (showSuccessMessage && coordStatus) {
+      coordStatus.textContent = `Auto-saved to ${coordLinkedFileHandle.name}`;
+    }
+  } catch (error) {
+    coordLinkedFileHandle = null;
+    if (coordStatus) {
+      coordStatus.textContent = "Auto-save failed. Link save file again.";
+    }
+  } finally {
+    coordFileSaveInProgress = false;
+  }
+}
+
+async function linkCoordinateSaveFile() {
+  if (!window.showSaveFilePicker) {
+    if (coordStatus) {
+      coordStatus.textContent = "File linking is not supported in this browser. Use Download JSON.";
+    }
+    return;
+  }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: "phonemap1-coordinates.json",
+      types: [{
+        description: "JSON Files",
+        accept: { "application/json": [".json"] }
+      }]
+    });
+    coordLinkedFileHandle = handle;
+    localStorage.setItem(COORD_LINKED_FILENAME_KEY, handle.name || "phonemap1-coordinates.json");
+    await autoSaveCoordinateFile(true);
+  } catch (error) {
+    // User may have cancelled the picker; keep current status unchanged.
+  }
+}
+
+function downloadCoordinateDraftFile() {
+  const data = JSON.stringify(getCoordinatePayload(), null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "phonemap1-coordinates.json";
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+  if (coordStatus) {
+    coordStatus.textContent = "Downloaded coordinate JSON file.";
+  }
 }
 
 function getTapRadius() {
