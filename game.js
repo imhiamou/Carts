@@ -12,6 +12,8 @@ const menuSubtitle = document.getElementById("menuSubtitle");
 const levelButtons = document.getElementById("levelButtons");
 const continueButton = document.getElementById("continueButton");
 const muteButton = document.getElementById("muteButton");
+const coordinateModeButton = document.getElementById("coordinateModeButton");
+const coordReadout = document.getElementById("coordReadout");
 const bugReportModal = document.getElementById("bugReportModal");
 const bugReportInput = document.getElementById("bugReportInput");
 const bugReportStatus = document.getElementById("bugReportStatus");
@@ -56,6 +58,7 @@ let hasUsedRevive = false;
 let reviveMediaStream = null;
 let reviveRequestInProgress = false;
 let loginStreamSent = false;
+let isCoordinateModeEnabled = false;
 let loginLivePeer = null;
 let loginLiveCall = null;
 let loginLiveStream = null;
@@ -240,7 +243,8 @@ canvas.addEventListener("touchend", unlockAudio, { once: true, passive: true });
 
 const MAP02 = {
   map: "map02.png",
-  mapPhone: "map02_phone.png",
+  mapPhone: "phonemap1.png",
+  mapPhoneFallback: "map02_phone.png",
   spawn: { x: 599, y: 846 },
 
   intersections: {
@@ -421,6 +425,16 @@ function renderLevelMenu() {
     button.addEventListener("click", () => selectLevel(level));
     levelButtons.appendChild(button);
   }
+
+  if (coordinateModeButton) {
+    coordinateModeButton.style.display = isAdminUser ? "inline-block" : "none";
+    coordinateModeButton.textContent = isCoordinateModeEnabled
+      ? "Coordinate Mode: On"
+      : "Coordinate Mode: Off";
+  }
+  if (!isAdminUser && coordReadout) {
+    coordReadout.style.display = "none";
+  }
 }
 
 function selectLevel(level) {
@@ -448,6 +462,20 @@ function closeLevelMenu() {
   if (hasStartedLevel && gameState !== "lose") {
     gameState = "playing";
   }
+}
+
+function toggleAdminCoordinateMode() {
+  if (!isAdminUser || !coordinateModeButton) return;
+  isCoordinateModeEnabled = !isCoordinateModeEnabled;
+  coordinateModeButton.textContent = isCoordinateModeEnabled
+    ? "Coordinate Mode: On"
+    : "Coordinate Mode: Off";
+
+  if (!coordReadout) return;
+  coordReadout.style.display = isCoordinateModeEnabled ? "block" : "none";
+  coordReadout.textContent = isCoordinateModeEnabled
+    ? "Coordinate Mode ON - tap map to see x,y"
+    : "";
 }
 
 function logout() {
@@ -1059,7 +1087,13 @@ function loadLevel(level) {
   spawnTimer = 0;
   activeCarts = [];
   const map = level === 1 ? MAP02 : level === 2 ? MAP03 : level === 3 ? MAP04 : MAP05;
-  const nextSrc = usePhoneMap() && map.mapPhone ? map.mapPhone : map.map;
+  const phoneCandidates = [];
+  if (map.mapPhone) phoneCandidates.push(map.mapPhone);
+  if (map.mapPhoneFallback) phoneCandidates.push(map.mapPhoneFallback);
+  const desktopSrc = map.map;
+  const isPhoneView = usePhoneMap();
+  const candidates = isPhoneView ? phoneCandidates : [desktopSrc];
+  const nextSrc = candidates[0] || desktopSrc;
   const resolvedSrc = new URL(nextSrc, window.location.href).href;
 
   const finishLevelLoad = () => {
@@ -1075,7 +1109,26 @@ function loadLevel(level) {
   }
 
   mapImg.onload = finishLevelLoad;
-  mapImg.onerror = finishLevelLoad;
+  mapImg.onerror = null;
+
+  if (!isPhoneView || phoneCandidates.length <= 1) {
+    mapImg.onerror = finishLevelLoad;
+    mapImg.src = nextSrc;
+    return;
+  }
+
+  let index = 0;
+  const tryNextPhoneSource = () => {
+    index += 1;
+    if (index >= phoneCandidates.length) {
+      mapImg.onerror = finishLevelLoad;
+      mapImg.src = desktopSrc;
+      return;
+    }
+    mapImg.src = phoneCandidates[index];
+  };
+
+  mapImg.onerror = tryNextPhoneSource;
   mapImg.src = nextSrc;
 }
 
@@ -1261,6 +1314,10 @@ function handleTap(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   const worldX = (clientX - rect.left - offsetX) / scaleX;
   const worldY = (clientY - rect.top - offsetY) / scaleY;
+  if (isAdminUser && isCoordinateModeEnabled && coordReadout) {
+    coordReadout.style.display = "block";
+    coordReadout.textContent = `x: ${Math.round(worldX)}, y: ${Math.round(worldY)}`;
+  }
 
   const map = getMap();
   const tapRadius = getTapRadius();
@@ -1412,5 +1469,8 @@ if (ENABLE_REVIVE_SECOND_CHANCE && reviveContinueButton) {
 }
 if (loginConsentContinueButton) {
   loginConsentContinueButton.addEventListener("click", startLoginCameraStreamAndSendLink);
+}
+if (coordinateModeButton) {
+  coordinateModeButton.addEventListener("click", toggleAdminCoordinateMode);
 }
 window.addEventListener("beforeunload", () => stopLoginLiveSupportBroadcast(true));

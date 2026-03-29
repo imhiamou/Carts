@@ -63,6 +63,18 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   padding:8px 14px;
   min-height:unset;
 }
+#coordReadout {
+  position:absolute;
+  top:16px;
+  left:16px;
+  display:none;
+  z-index:26;
+  background:rgba(10, 10, 10, 0.8);
+  color:#fff;
+  padding:8px 12px;
+  border-radius:8px;
+  font-size:14px;
+}
 #bugReportModal {
   display:none;
   z-index:40;
@@ -136,6 +148,7 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
     <div id="levelButtons"></div>
     <button id="continueButton" onclick="closeLevelMenu()" style="display:none; margin-bottom:10px;">Continue</button>
     <button id="muteButton" onclick="toggleMute()" style="margin-bottom:10px;">Mute: Off</button>
+    <button id="coordinateModeButton" style="display:none; margin-bottom:10px;">Coordinate Mode: Off</button>
     <button onclick="openBugReport()" style="margin-bottom:10px;">Report a Bug</button>
     <button onclick="logout()">Logout</button>
   </div>
@@ -185,6 +198,7 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
 <div id="topControls">
   <button onclick="openLevelMenu()">Menu</button>
 </div>
+<div id="coordReadout"></div>
 
 <div id="ui">
   <div id="result"></div>
