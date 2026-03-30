@@ -1,5 +1,5 @@
 const USERS = {
-  mermy: { password: "wolf", isAdmin: false },
+  user: { password: "user", isAdmin: false },
   admin: { password: "admin", isAdmin: true }
 };
 

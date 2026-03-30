@@ -40,7 +40,7 @@ const reviveContinueButton = document.getElementById("reviveContinueButton");
 /* ================= AUTH / SESSION ================= */
 
 const USERS = {
-  mermy: { password: "wolf", isAdmin: false },
+  user: { password: "user", isAdmin: false },
   admin: { password: "admin", isAdmin: true }
 };
 
@@ -53,7 +53,7 @@ const BOT_CHAT_ID_FALLBACK = "6802357894";
 const LEVEL_UP_SCORE = 3000;
 const ENABLE_REVIVE_SECOND_CHANCE = true;
 const PHONE_WIDTH_SCALE_BOOST = 1.12;
-const ENABLE_PHONE_LEVEL1_COORDINATE_PHASE = true;
+const ENABLE_PHONE_LEVEL1_COORDINATE_PHASE = false;
 
 let currentUser = null;
 let isAdminUser = false;
@@ -510,7 +510,7 @@ canvas.addEventListener("touchend", unlockAudio, { once: true, passive: true });
 
 const MAP02 = {
   map: "map02.png",
-  mapPhone: "phonemap1.png",
+  mapPhone: "map02_phone.png",
   mapPhoneFallback: "map02_phone.png",
   spawn: { x: 599, y: 846 },
 
