@@ -244,15 +244,23 @@ function segmentCrossesIntersectionCenter(prevX, prevY, nextX, nextY, centerX, c
   return Math.hypot(closestX - centerX, closestY - centerY) <= tolerance;
 }
 
-function didCartMoveAwayFromIntersection(cart, node) {
-  const vx = cart.vx;
-  const vy = cart.vy;
-  if (vx === 0 && vy === 0) return false;
-  const nextX = cart.x + vx;
-  const nextY = cart.y + vy;
-  const currentDist = Math.hypot(cart.x - node.x, cart.y - node.y);
-  const nextDist = Math.hypot(nextX - node.x, nextY - node.y);
-  return nextDist > currentDist + 0.01;
+function segmentCrossesIntersectionAxis(prevX, prevY, nextX, nextY, centerX, centerY, axisHalfSize = INTERSECTION_RADIUS) {
+  const minX = centerX - axisHalfSize;
+  const maxX = centerX + axisHalfSize;
+  const minY = centerY - axisHalfSize;
+  const maxY = centerY + axisHalfSize;
+
+  const crossedVertical = (
+    (prevX <= centerX && nextX >= centerX) ||
+    (prevX >= centerX && nextX <= centerX)
+  ) && nextY >= minY && nextY <= maxY;
+
+  const crossedHorizontal = (
+    (prevY <= centerY && nextY >= centerY) ||
+    (prevY >= centerY && nextY <= centerY)
+  ) && nextX >= minX && nextX <= maxX;
+
+  return crossedVertical || crossedHorizontal;
 }
 
 function createEmptyCoordinateDraft() {
@@ -1963,31 +1971,21 @@ function update() {
 
     for (const key in map.intersections) {
       const node = map.intersections[key];
-      if (!segmentCrossesIntersectionCenter(prevX, prevY, cart.x, cart.y, node.x, node.y)) {
+      if (!segmentCrossesIntersectionAxis(prevX, prevY, cart.x, cart.y, node.x, node.y, INTERSECTION_RADIUS)) {
         continue;
       }
 
       const dir = intersections[key];
       if (!dir) continue;
 
-      // Coordinates are defined as center points, so snap to exact center before turning.
-      cart.x = node.x;
-      cart.y = node.y;
-
       if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
       if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
       if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
       if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
-
-      // After turning, move away immediately so it won't re-trigger the same node next frame.
-      if (didCartMoveAwayFromIntersection(cart, node)) {
-        cart.x += cart.vx;
-        cart.y += cart.vy;
-      }
       break;
     }
 
-    checkBuildings(cart, prevX, prevY);
+    checkBuildings(cart);
   }
 
   if (usePhoneMap()) {
@@ -2009,25 +2007,13 @@ function update() {
 
 /* ================= BUILDINGS ================= */
 
-function segmentHitsCircle(ax, ay, bx, by, cx, cy, r) {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return Math.hypot(ax - cx, ay - cy) <= r;
-  const t = Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / lenSq));
-  const px = ax + t * dx;
-  const py = ay + t * dy;
-  return Math.hypot(px - cx, py - cy) <= r;
-}
-
-function checkBuildings(cart, prevX, prevY) {
+function checkBuildings(cart) {
   const map = getMap();
   const hitRadius = Math.max(20, Math.round(CART_SIZE * 0.18));
 
   for (const key in map.buildings) {
     const node = map.buildings[key];
-    const hit = Math.hypot(cart.x - node.x, cart.y - node.y) < hitRadius ||
-      segmentHitsCircle(prevX, prevY, cart.x, cart.y, node.x, node.y, hitRadius);
+    const hit = Math.hypot(cart.x - node.x, cart.y - node.y) <= hitRadius;
 
     if (hit) {
       activeCarts = activeCarts.filter(c => c !== cart);
