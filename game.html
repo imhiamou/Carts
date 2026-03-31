@@ -313,12 +313,11 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   <label id="coordInteractionModeWrap">
     Interaction
     <select id="coordInteractionMode">
-      <option value="add">Add / Select on tap</option>
-      <option value="move">Move mode (long-press drag)</option>
-      <option value="resize">Resize mode (two-finger pinch)</option>
+      <option value="add">Add new point (tap to place)</option>
+      <option value="edit">Edit points (long-press move + pinch resize)</option>
     </select>
   </label>
-  <div id="coordEditorHint">Pick type/target, then tap map. Long-press and drag hitboxes in editor mode; pinch to resize.</div>
+  <div id="coordEditorHint">Add mode: pick type/target, then tap map to place/update that point.</div>
   <div id="coordEditorActions" class="modalActions">
     <button id="coordClearButton" type="button">Clear</button>
     <button id="coordLinkFileButton" type="button">Link Save File</button>
@@ -337,6 +336,6 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   <button onclick="openLevelMenu()">Level Menu</button>
 </div>
 
-<script src="game.js?v=coord-editor-2"></script>
+<script src="game.js?v=coord-editor-3"></script>
 </body>
 </html>

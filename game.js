@@ -60,6 +60,7 @@ const LEVEL_UP_SCORE = 3000;
 const ENABLE_REVIVE_SECOND_CHANCE = true;
 const PHONE_WIDTH_SCALE_BOOST = 1.12;
 const ENABLE_PHONE_LEVEL1_COORDINATE_PHASE = false;
+const PHONE_ADMIN_COORD_LEVEL_MAX = 2;
 
 let currentUser = null;
 let isAdminUser = false;
@@ -74,11 +75,13 @@ let pendingLevelUp = null;
 let isCoordinateModeEnabled = false;
 let lastTappedCoordinate = null;
 let coordinateDraftData = createEmptyCoordinateDraft();
-const COORD_STORAGE_KEY = "medieval_pixel_cart_coord_draft_v1";
+const COORD_STORAGE_KEY_PREFIX = "medieval_pixel_cart_coord_draft_v2_";
+const LEGACY_COORD_STORAGE_KEY = "medieval_pixel_cart_coord_draft_v1";
 const COORD_LINKED_FILENAME_KEY = "medieval_pixel_cart_coord_file_name_v1";
 let isCoordPanelCollapsed = false;
 let coordLinkedFileHandle = null;
 let coordFileSaveInProgress = false;
+let coordinateDraftMapId = "";
 const EDITOR_HOLD_MS = 260;
 const EDITOR_MOVE_CANCEL_PX = 12;
 const EDITOR_RADIUS_MIN = 10;
@@ -144,6 +147,9 @@ function setUnlockedLevel(level) {
 
 function canAccessLevel(level) {
   if (isPhoneOnlyMapMode()) {
+    if (isAdminUser) {
+      return level >= 1 && level <= PHONE_ADMIN_COORD_LEVEL_MAX;
+    }
     return level === 1;
   }
   return isAdminUser || level <= unlockedLevel;
@@ -173,7 +179,11 @@ function ensureSession() {
       currentLevel = progress.lastLevel;
     }
     if (usePhoneMap()) {
-      currentLevel = 1;
+      if (isAdminUser) {
+        currentLevel = Math.max(1, Math.min(PHONE_ADMIN_COORD_LEVEL_MAX, currentLevel));
+      } else {
+        currentLevel = 1;
+      }
     }
     return true;
   } catch (error) {
@@ -217,11 +227,44 @@ function isPhoneOnlyMapMode() {
 }
 
 function isPhoneLevel1CoordinatePhaseActive() {
-  return ENABLE_PHONE_LEVEL1_COORDINATE_PHASE && isPhoneOnlyMapMode() && currentLevel === 1;
+  // Keep legacy name, but support phone coordinate setup on all configured phone levels.
+  return ENABLE_PHONE_LEVEL1_COORDINATE_PHASE && isPhoneCoordinateLevelActive();
 }
 
 function isPhoneMap1Active() {
   return isPhoneOnlyMapMode() && currentLevel === 1;
+}
+
+function isPhoneMap2Active() {
+  return isPhoneOnlyMapMode() && currentLevel === 2;
+}
+
+function isPhoneCoordinateLevelActive() {
+  if (!isPhoneOnlyMapMode()) return false;
+  const baseMap = getBaseMapForLevel(currentLevel);
+  return Boolean(baseMap?.phoneLayout);
+}
+
+function getCoordinateMapIdForLevel(level = currentLevel) {
+  const baseMap = getBaseMapForLevel(level);
+  if (!baseMap) return `level${level}`;
+  if (isPhoneOnlyMapMode() && typeof baseMap.mapPhone === "string" && baseMap.mapPhone) {
+    return baseMap.mapPhone;
+  }
+  return baseMap.map || `level${level}`;
+}
+
+function getCoordinateStorageKey(mapId = coordinateDraftMapId || getCoordinateMapIdForLevel()) {
+  const safeId = String(mapId || "default").replace(/[^a-z0-9_.-]/gi, "_").toLowerCase();
+  return `${COORD_STORAGE_KEY_PREFIX}${safeId}`;
+}
+
+function getCoordinateSuggestedFilename(mapId = coordinateDraftMapId || getCoordinateMapIdForLevel()) {
+  const fileName = String(mapId || "")
+    .split("/")
+    .pop() || `level${currentLevel}`;
+  const withoutExt = fileName.replace(/\.[^/.]+$/, "");
+  return `${withoutExt}-coordinates.json`;
 }
 
 function getDirectionOptionsFromNode(node, fallback = []) {
@@ -340,31 +383,78 @@ function resetCoordinateDraft() {
 }
 
 function getCoordinatePayload() {
+  const mapId = coordinateDraftMapId || getCoordinateMapIdForLevel();
   return {
-    map: "phonemap1.png",
+    map: mapId,
     draft: coordinateDraftData
   };
 }
 
 function persistCoordinateDraft() {
   try {
-    localStorage.setItem(COORD_STORAGE_KEY, JSON.stringify(getCoordinatePayload()));
+    localStorage.setItem(getCoordinateStorageKey(), JSON.stringify(getCoordinatePayload()));
   } catch (error) {
     // Ignore storage write errors.
   }
   void autoSaveCoordinateFile(false);
 }
 
-function loadCoordinateDraft() {
-  try {
-    const raw = localStorage.getItem(COORD_STORAGE_KEY);
-    if (!raw) return false;
+function loadCoordinateDraft(mapId = getCoordinateMapIdForLevel(), allowLegacyFallback = false) {
+  const targetMapId = String(mapId || getCoordinateMapIdForLevel());
+
+  const loadPayloadFromStorage = (storageKey, expectedMapId, allowMissingMap = false) => {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || parsed.map !== "phonemap1.png" || !parsed.draft) return false;
+    if (!parsed || !parsed.draft) return null;
+    if (!allowMissingMap && parsed.map !== expectedMapId) return null;
+    if (allowMissingMap && parsed.map && parsed.map !== expectedMapId) return null;
+    return parsed;
+  };
+
+  try {
+    const parsed = loadPayloadFromStorage(getCoordinateStorageKey(targetMapId), targetMapId, true);
+    if (!parsed) {
+      if (!allowLegacyFallback || targetMapId !== "phonemap1.png") return false;
+      const legacy = loadPayloadFromStorage(LEGACY_COORD_STORAGE_KEY, "phonemap1.png", false);
+      if (!legacy) return false;
+      coordinateDraftMapId = "phonemap1.png";
+      coordinateDraftData = normalizeCoordinateDraft(legacy.draft);
+      return true;
+    }
+    coordinateDraftMapId = targetMapId;
     coordinateDraftData = normalizeCoordinateDraft(parsed.draft);
     return true;
   } catch (error) {
     return false;
+  }
+}
+
+function switchCoordinateDraftMapForCurrentLevel(options = {}) {
+  const { showStatus = false } = options;
+  const mapId = getCoordinateMapIdForLevel(currentLevel);
+  const switched = coordinateDraftMapId !== mapId;
+
+  if (!switched) {
+    if (!coordinateDraftData || typeof coordinateDraftData !== "object") {
+      coordinateDraftData = createEmptyCoordinateDraft();
+    }
+    updateCoordinateOutput();
+    return;
+  }
+
+  const loaded = loadCoordinateDraft(mapId, true);
+  if (!loaded) {
+    coordinateDraftMapId = mapId;
+    coordinateDraftData = createEmptyCoordinateDraft();
+  }
+  updateCoordinateOutput();
+
+  if (showStatus && coordStatus) {
+    const label = getCoordinateSuggestedFilename(mapId);
+    coordStatus.textContent = loaded
+      ? `Loaded saved coordinates for ${label}.`
+      : `Started new coordinate draft for ${label}.`;
   }
 }
 
@@ -533,12 +623,8 @@ function getCoordinateEditorMode() {
 function updateCoordinateEditorHint() {
   if (!coordEditorHint) return;
   const mode = getCoordinateEditorMode();
-  if (mode === "move") {
-    coordEditorHint.textContent = "Move mode: long-press a hitbox, then drag to move it.";
-    return;
-  }
-  if (mode === "resize") {
-    coordEditorHint.textContent = "Resize mode: place two fingers near a hitbox and pinch to resize it.";
+  if (mode === "edit") {
+    coordEditorHint.textContent = "Edit mode: long-press and drag to move, or use two fingers to pinch-resize hitboxes.";
     return;
   }
   coordEditorHint.textContent = "Add mode: tap to place/update hitbox for selected target.";
@@ -735,7 +821,7 @@ function onCanvasTouchStart(event) {
   const mode = getCoordinateEditorMode();
   const touches = event.touches;
 
-  if (touches.length >= 2 && mode === "resize") {
+  if (touches.length >= 2 && mode === "edit") {
     clearEditorHoldTimer();
     if (beginPinchResize(touches[0], touches[1])) {
       coordEditorSuppressTapUntil = Date.now() + EDITOR_HOLD_MS;
@@ -754,10 +840,10 @@ function onCanvasTouchStart(event) {
   editorHoldTouchId = touch.identifier;
   clearEditorHoldTimer();
 
-  if (mode !== "move") return;
+  if (mode !== "edit") return;
 
   editorHoldTimer = setTimeout(() => {
-    if (!isCoordinateEditorActive() || getCoordinateEditorMode() !== "move") return;
+    if (!isCoordinateEditorActive() || getCoordinateEditorMode() !== "edit") return;
     const world = getWorldPointFromClient(editorTapLastClientX, editorTapLastClientY);
     const target = findNearestCoordinateEntity(world.x, world.y, 20);
     if (!target) return;
@@ -804,7 +890,7 @@ function onCanvasTouchMove(event) {
     }
   }
 
-  if (mode === "resize" && touches.length >= 2) {
+  if (mode === "edit" && touches.length >= 2) {
     if (!editorPinchEntity) {
       if (beginPinchResize(touches[0], touches[1])) {
         coordEditorSuppressTapUntil = Date.now() + EDITOR_HOLD_MS;
@@ -978,11 +1064,7 @@ function setupCoordinateEditor() {
 
   rebuildCoordinateEntityDropdown();
   syncCoordinateDirectionVisibility();
-  if (!loadCoordinateDraft()) {
-    resetCoordinateDraft();
-  } else {
-    updateCoordinateOutput();
-  }
+  switchCoordinateDraftMapForCurrentLevel();
   selectCoordinateEntity(coordTypeSelect.value || "spawn", coordTargetSelect.value || "spawn");
   updateCoordinateEditorHint();
   const linkedName = localStorage.getItem(COORD_LINKED_FILENAME_KEY);
@@ -1051,15 +1133,16 @@ async function linkCoordinateSaveFile() {
     return;
   }
   try {
+    const suggestedName = getCoordinateSuggestedFilename();
     const handle = await window.showSaveFilePicker({
-      suggestedName: "phonemap1-coordinates.json",
+      suggestedName,
       types: [{
         description: "JSON Files",
         accept: { "application/json": [".json"] }
       }]
     });
     coordLinkedFileHandle = handle;
-    localStorage.setItem(COORD_LINKED_FILENAME_KEY, handle.name || "phonemap1-coordinates.json");
+    localStorage.setItem(COORD_LINKED_FILENAME_KEY, handle.name || suggestedName);
     await autoSaveCoordinateFile(true);
   } catch (error) {
     // User may have cancelled the picker; keep current status unchanged.
@@ -1072,7 +1155,7 @@ function downloadCoordinateDraftFile() {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "phonemap1-coordinates.json";
+  anchor.download = getCoordinateSuggestedFilename();
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
@@ -1204,7 +1287,9 @@ const MAP02 = {
 
 const MAP03 = {
   map: "map03.png",
-  mapPhone: "map03_phone.png",
+  mapPhone: "phonemap02.png",
+  mapPhoneFallback: "phonemap2.png",
+  mapPhoneFallback2: "map03_phone.png",
   spawn: { x: 322, y: 879 },
 
   intersections: {
@@ -1220,6 +1305,14 @@ const MAP03 = {
     mine: { x: 749, y: 224 },
     tavern: { x: 867, y: 627 },
     windmill: { x: 1029, y: 758 }
+  },
+
+  // Phone map 2 coordinate phase starts empty by design.
+  // Admin can fill this with the coordinate editor and export JSON.
+  phoneLayout: {
+    spawn: null,
+    intersections: {},
+    buildings: {}
   }
 };
 
@@ -1277,7 +1370,7 @@ function getBaseMapForLevel(level) {
 
 function getMapForLevel(level) {
   const baseMap = getBaseMapForLevel(level);
-  if (isPhoneOnlyMapMode() && level === 1 && baseMap.phoneLayout) {
+  if (isPhoneOnlyMapMode() && baseMap.phoneLayout) {
     return {
       ...baseMap,
       spawn: baseMap.phoneLayout.spawn,
@@ -1366,7 +1459,9 @@ resize();
 function renderLevelMenu() {
   if (usePhoneMap()) {
     menuTitle.textContent = "Phone Map Setup";
-    menuSubtitle.textContent = "Phone mode is locked to Map 1 only.";
+    menuSubtitle.textContent = isAdminUser
+      ? "Admin phone mode: Map 1 playable + Map 2 coordinate setup."
+      : "Phone mode is locked to Map 1 only.";
   } else {
   menuTitle.textContent = isAdminUser ? "Admin Level Menu" : "Select Level";
   menuSubtitle.textContent = isAdminUser
@@ -1397,7 +1492,6 @@ function renderLevelMenu() {
 }
 
 function selectLevel(level) {
-  if (usePhoneMap() && level !== 1) return;
   if (!canAccessLevel(level)) return;
   hasStartedLevel = true;
   ui.style.display = "none";
@@ -1434,7 +1528,7 @@ function toggleAdminCoordinateMode() {
   if (coordReadout) {
     coordReadout.style.display = isCoordinateModeEnabled ? "block" : "none";
     coordReadout.textContent = isCoordinateModeEnabled
-      ? "Coordinate Mode ON - use Add/Move/Resize from setup panel"
+      ? "Coordinate Mode ON - use Add/Edit from setup panel"
       : "";
   }
 
@@ -1912,9 +2006,14 @@ async function sendBugReport() {
 
 function loadLevel(level) {
   if (isPhoneOnlyMapMode()) {
-    level = 1;
+    if (isAdminUser) {
+      level = Math.max(1, Math.min(PHONE_ADMIN_COORD_LEVEL_MAX, level));
+    } else {
+      level = 1;
+    }
   }
   currentLevel = level;
+  switchCoordinateDraftMapForCurrentLevel({ showStatus: isCoordinateEditorActive() });
   if (currentUser && !isAdminUser) {
     saveUserProgress();
   }
@@ -1925,6 +2024,7 @@ function loadLevel(level) {
   const phoneCandidates = [];
   if (map.mapPhone) phoneCandidates.push(map.mapPhone);
   if (map.mapPhoneFallback) phoneCandidates.push(map.mapPhoneFallback);
+  if (map.mapPhoneFallback2) phoneCandidates.push(map.mapPhoneFallback2);
   const desktopSrc = map.map;
   const isPhoneView = usePhoneMap();
   const candidates = isPhoneView ? phoneCandidates : [desktopSrc];
@@ -2034,7 +2134,7 @@ function resetGame() {
   }
   if (coordStatus) {
     coordStatus.textContent = isPhoneLevel1CoordinatePhaseActive()
-      ? "Coordinate phase active for phone map level 1."
+      ? `Coordinate phase active for ${getCoordinateSuggestedFilename()}.`
       : "";
   }
   updateCoordinateUIVisibility();
@@ -2044,7 +2144,11 @@ function resetGame() {
 
 function spawnCart() {
   const map = getMap();
+  if (!map?.spawn || !Number.isFinite(map.spawn.x) || !Number.isFinite(map.spawn.y)) {
+    return;
+  }
   const destinations = Object.keys(map.buildings);
+  if (destinations.length === 0) return;
   const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
 
   const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
