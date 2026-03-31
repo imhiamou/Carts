@@ -110,7 +110,7 @@ function setUnlockedLevel(level) {
 }
 
 function canAccessLevel(level) {
-  if (usePhoneMap()) {
+  if (isPhoneOnlyMapMode()) {
     return level === 1;
   }
   return isAdminUser || level <= unlockedLevel;
@@ -138,6 +138,9 @@ function ensureSession() {
       unlockedLevel = progress.unlockedLevel;
       currentLevel = progress.lastLevel;
     }
+    if (usePhoneMap()) {
+      currentLevel = 1;
+    }
     return true;
   } catch (error) {
     return false;
@@ -162,16 +165,25 @@ const TAP_RADIUS = 80;
 const INTERSECTION_RADIUS = 8;
 
 function isPhone() {
-  return window.matchMedia("(max-width: 768px)").matches;
+  if (window.matchMedia("(max-width: 900px)").matches) return true;
+  const ua = navigator.userAgent || navigator.vendor || "";
+  return /android|iphone|ipad|ipod|mobile/i.test(ua);
 }
 
 function usePhoneMap() {
   if (window.matchMedia("(max-width: 768px)").matches) return true;
+  const touchCapable = navigator.maxTouchPoints > 0 || "ontouchstart" in window;
+  if (touchCapable && Math.min(window.innerWidth, window.innerHeight) <= 900) return true;
+  if (touchCapable && Math.min(screen.width, screen.height) <= 900) return true;
   return "ontouchstart" in window && (window.innerWidth <= 1024 || screen.width <= 1024);
 }
 
+function isPhoneOnlyMapMode() {
+  return usePhoneMap();
+}
+
 function isPhoneLevel1CoordinatePhaseActive() {
-  return ENABLE_PHONE_LEVEL1_COORDINATE_PHASE && usePhoneMap() && currentLevel === 1;
+  return ENABLE_PHONE_LEVEL1_COORDINATE_PHASE && isPhoneOnlyMapMode() && currentLevel === 1;
 }
 
 function createEmptyCoordinateDraft() {
@@ -1089,7 +1101,7 @@ async function sendBugReport() {
 /* ================= LEVEL LOAD ================= */
 
 function loadLevel(level) {
-  if (usePhoneMap()) {
+  if (isPhoneOnlyMapMode()) {
     level = 1;
   }
   currentLevel = level;
