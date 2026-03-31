@@ -244,6 +244,17 @@ function segmentCrossesIntersectionCenter(prevX, prevY, nextX, nextY, centerX, c
   return Math.hypot(closestX - centerX, closestY - centerY) <= tolerance;
 }
 
+function didCartMoveAwayFromIntersection(cart, node) {
+  const vx = cart.vx;
+  const vy = cart.vy;
+  if (vx === 0 && vy === 0) return false;
+  const nextX = cart.x + vx;
+  const nextY = cart.y + vy;
+  const currentDist = Math.hypot(cart.x - node.x, cart.y - node.y);
+  const nextDist = Math.hypot(nextX - node.x, nextY - node.y);
+  return nextDist > currentDist + 0.01;
+}
+
 function createEmptyCoordinateDraft() {
   return {
     savedAt: "",
@@ -1967,6 +1978,13 @@ function update() {
       if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
       if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
       if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
+
+      // After turning, move away immediately so it won't re-trigger the same node next frame.
+      if (didCartMoveAwayFromIntersection(cart, node)) {
+        cart.x += cart.vx;
+        cart.y += cart.vy;
+      }
+      break;
     }
 
     checkBuildings(cart, prevX, prevY);
