@@ -27,6 +27,7 @@ const coordPanelToggleButton = document.getElementById("coordPanelToggleButton")
 const coordOutput = document.getElementById("coordOutput");
 const coordStatus = document.getElementById("coordStatus");
 const coordLastTap = document.getElementById("coordLastTap");
+const coordDirectionChecks = document.querySelectorAll(".coordDirectionCheck");
 const bugReportModal = document.getElementById("bugReportModal");
 const bugReportInput = document.getElementById("bugReportInput");
 const bugReportStatus = document.getElementById("bugReportStatus");
@@ -276,6 +277,17 @@ function syncCoordinateDirectionVisibility() {
   coordDirectionWrap.style.display = coordTypeSelect.value === "intersection" ? "block" : "none";
 }
 
+function getSelectedIntersectionDirections() {
+  const selected = [];
+  for (const checkbox of coordDirectionChecks) {
+    if (checkbox.checked && typeof checkbox.value === "string") {
+      selected.push(checkbox.value);
+    }
+  }
+  if (selected.length === 0) selected.push("up");
+  return selected;
+}
+
 function setupCoordinateEditor() {
   if (!coordTypeSelect || !coordTargetSelect) return;
 
@@ -285,7 +297,11 @@ function setupCoordinateEditor() {
   });
 
   if (coordRecordButton) {
-    coordRecordButton.addEventListener("click", recordCoordinateFromLastTap);
+    coordRecordButton.addEventListener("click", () => {
+      if (coordStatus) {
+        coordStatus.textContent = "Pick point type/target, then click on the map to record.";
+      }
+    });
   }
 
   if (coordClearButton) {
@@ -344,28 +360,43 @@ function recordCoordinateFromLastTap() {
   const entityName = coordTargetSelect.value;
 
   if (entityType === "spawn") {
+    const wasSet = Boolean(coordinateDraftData.spawn);
     coordinateDraftData.spawn = point;
     coordinateDraftData.savedAt = new Date().toISOString();
     persistCoordinateDraft();
-    if (coordStatus) coordStatus.textContent = `Saved spawn at x:${point.x}, y:${point.y}`;
+    if (coordStatus) {
+      coordStatus.textContent = wasSet
+        ? `Updated spawn to x:${point.x}, y:${point.y}`
+        : `Saved spawn at x:${point.x}, y:${point.y}`;
+    }
     updateCoordinateOutput();
     return;
   }
 
   if (entityType === "intersection") {
-    const dir = coordDirectionSelect ? coordDirectionSelect.value : "up";
-    coordinateDraftData.intersections[entityName] = { ...point, direction: dir };
+    const wasSet = Boolean(coordinateDraftData.intersections[entityName]);
+    const directions = getSelectedIntersectionDirections();
+    coordinateDraftData.intersections[entityName] = { ...point, directions };
     coordinateDraftData.savedAt = new Date().toISOString();
     persistCoordinateDraft();
-    if (coordStatus) coordStatus.textContent = `Saved ${entityName} at x:${point.x}, y:${point.y}, dir:${dir}`;
+    if (coordStatus) {
+      coordStatus.textContent = wasSet
+        ? `Updated ${entityName} to x:${point.x}, y:${point.y}, dirs:${directions.join(",")}`
+        : `Saved ${entityName} at x:${point.x}, y:${point.y}, dirs:${directions.join(",")}`;
+    }
     updateCoordinateOutput();
     return;
   }
 
+  const wasSet = Boolean(coordinateDraftData.buildings[entityName]);
   coordinateDraftData.buildings[entityName] = point;
   coordinateDraftData.savedAt = new Date().toISOString();
   persistCoordinateDraft();
-  if (coordStatus) coordStatus.textContent = `Saved ${entityName} at x:${point.x}, y:${point.y}`;
+  if (coordStatus) {
+    coordStatus.textContent = wasSet
+      ? `Updated ${entityName} to x:${point.x}, y:${point.y}`
+      : `Saved ${entityName} at x:${point.x}, y:${point.y}`;
+  }
   updateCoordinateOutput();
 }
 
@@ -1378,6 +1409,9 @@ function handleTap(clientX, clientY) {
   if (isAdminUser && isCoordinateModeEnabled && coordReadout) {
     coordReadout.style.display = "block";
     coordReadout.textContent = `x: ${Math.round(worldX)}, y: ${Math.round(worldY)}`;
+  }
+  if (isAdminUser && isCoordinateModeEnabled) {
+    recordCoordinateFromLastTap();
   }
   if (gameState !== "playing" || isPhoneLevel1CoordinatePhaseActive()) return;
 

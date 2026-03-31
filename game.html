@@ -74,6 +74,7 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   padding:8px 12px;
   border-radius:8px;
   font-size:14px;
+  pointer-events:none;
 }
 #coordEditorPanel {
   position:absolute;
@@ -118,6 +119,7 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   margin-top:6px;
   color:#d8f6ff;
   font-size:12px;
+  pointer-events:none;
 }
 #coordPanelToggleButton {
   position:absolute;
@@ -135,6 +137,22 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
 #coordEditorPanel.collapsed #coordStatus,
 #coordEditorPanel.collapsed .coordOutputWrap {
   display:none;
+}
+#coordDirectionChoices {
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:4px 8px;
+  margin-top:4px;
+}
+#coordDirectionChoices label {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  font-size:12px;
+}
+#coordDirectionChoices input {
+  margin:0;
 }
 #bugReportModal {
   display:none;
@@ -258,16 +276,15 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
     <select id="coordTargetSelect"></select>
   </label>
   <label id="coordDirectionWrap">
-    Direction
-    <select id="coordDirectionSelect">
-      <option value="up">Up</option>
-      <option value="left">Left</option>
-      <option value="right">Right</option>
-      <option value="down">Down</option>
-    </select>
+    Directions (multi-select)
+    <div id="coordDirectionChoices">
+      <label><input class="coordDirectionCheck" type="checkbox" value="up" checked> Up</label>
+      <label><input class="coordDirectionCheck" type="checkbox" value="left"> Left</label>
+      <label><input class="coordDirectionCheck" type="checkbox" value="right"> Right</label>
+      <label><input class="coordDirectionCheck" type="checkbox" value="down"> Down</label>
+    </div>
   </label>
   <div id="coordEditorActions" class="modalActions">
-    <button id="coordRecordButton" type="button">Record Point</button>
     <button id="coordClearButton" type="button">Clear</button>
     <button id="coordLinkFileButton" type="button">Link Save File</button>
     <button id="coordDownloadButton" type="button">Download JSON</button>
