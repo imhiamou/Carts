@@ -1706,6 +1706,9 @@ async function getLatestUpdateId() {
 
 function restoreFromRevive() {
   hasUsedRevive = true;
+  // Fresh restart state after approval while keeping score/progression.
+  activeCarts = [];
+  spawnTimer = 0;
   lives = 1;
   gameState = "playing";
   ui.style.display = "none";
@@ -1785,11 +1788,25 @@ async function requestReviveSecondChance(photoDataUrl) {
     reviveStatus.textContent = "Selfie sent. Waiting for owner decision...";
 
     const decision = await pollReviveDecision(String(chatId), beforeDecisionUpdateId, REVIVE_DECISION_WINDOW_MS);
-    if (decision === "yes" || decision === "timeout") {
-      reviveStatus.textContent = decision === "yes"
-        ? "Owner approved. Revive granted!"
-        : "No reply in time. Free revive granted.";
+    if (decision === "yes") {
+      reviveStatus.textContent = "Owner approved. Revive granted!";
       restoreFromRevive();
+    } else if (decision === "timeout") {
+      reviveStatus.textContent = "No reply yet. You can try again.";
+      reviveTimer.textContent = "Waiting for decision: expired";
+      reviveCapturedPhotoDataUrl = "";
+      stopReviveCamera();
+      reviveVideo.style.display = "none";
+      revivePhoto.style.display = "none";
+      if (reviveContinueButton) {
+        reviveContinueButton.style.display = "inline-block";
+      }
+      if (reviveTakePicButton) {
+        reviveTakePicButton.style.display = "none";
+      }
+      if (reviveRetryButton) {
+        reviveRetryButton.style.display = "none";
+      }
     } else {
       reviveStatus.textContent = "Owner denied revive.";
       hasUsedRevive = true;
