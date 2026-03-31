@@ -15,11 +15,11 @@ const muteButton = document.getElementById("muteButton");
 const coordinateModeButton = document.getElementById("coordinateModeButton");
 const coordReadout = document.getElementById("coordReadout");
 const coordEditorPanel = document.getElementById("coordEditorPanel");
+const coordEditorHint = document.getElementById("coordEditorHint");
+const coordInteractionMode = document.getElementById("coordInteractionMode");
 const coordTypeSelect = document.getElementById("coordTypeSelect");
 const coordTargetSelect = document.getElementById("coordTargetSelect");
 const coordDirectionWrap = document.getElementById("coordDirectionWrap");
-const coordDirectionSelect = document.getElementById("coordDirectionSelect");
-const coordRecordButton = document.getElementById("coordRecordButton");
 const coordClearButton = document.getElementById("coordClearButton");
 const coordLinkFileButton = document.getElementById("coordLinkFileButton");
 const coordDownloadButton = document.getElementById("coordDownloadButton");
@@ -72,6 +72,31 @@ const COORD_LINKED_FILENAME_KEY = "medieval_pixel_cart_coord_file_name_v1";
 let isCoordPanelCollapsed = false;
 let coordLinkedFileHandle = null;
 let coordFileSaveInProgress = false;
+const EDITOR_HOLD_MS = 260;
+const EDITOR_MOVE_CANCEL_PX = 12;
+const EDITOR_RADIUS_MIN = 10;
+const EDITOR_RADIUS_MAX = 180;
+const DEFAULT_SPAWN_RADIUS = 34;
+const DEFAULT_INTERSECTION_RADIUS = 30;
+const DEFAULT_BUILDING_RADIUS = 36;
+let coordEditorSuppressTapUntil = 0;
+let editorHoldTimer = null;
+let editorHoldTouchId = null;
+let editorHoldStartX = 0;
+let editorHoldStartY = 0;
+let editorDragEntity = null;
+let editorPinchEntity = null;
+let editorPinchInitialDistance = 0;
+let editorPinchInitialRadius = DEFAULT_INTERSECTION_RADIUS;
+let coordCanvasInteractionsBound = false;
+let editorTapTouchId = null;
+let editorTapMoved = false;
+let editorTapLastClientX = 0;
+let editorTapLastClientY = 0;
+const coordEditState = {
+  selectedType: "spawn",
+  selectedName: "spawn"
+};
 function progressStorageKey(username) {
   return STORAGE_PREFIX + username;
 }
@@ -227,6 +252,60 @@ function createEmptyCoordinateDraft() {
   };
 }
 
+function getDefaultRadiusForType(entityType) {
+  if (entityType === "spawn") return DEFAULT_SPAWN_RADIUS;
+  if (entityType === "intersection") return DEFAULT_INTERSECTION_RADIUS;
+  return DEFAULT_BUILDING_RADIUS;
+}
+
+function clampEditorRadius(value, fallbackRadius) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return clampEditorRadius(fallbackRadius, DEFAULT_INTERSECTION_RADIUS);
+  }
+  return Math.max(EDITOR_RADIUS_MIN, Math.min(EDITOR_RADIUS_MAX, Math.round(numeric)));
+}
+
+function normalizeCoordinatePoint(rawPoint, defaultRadius) {
+  if (!rawPoint || typeof rawPoint !== "object") return null;
+  const x = Number(rawPoint.x);
+  const y = Number(rawPoint.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    radius: clampEditorRadius(rawPoint.radius, defaultRadius)
+  };
+}
+
+function normalizeCoordinateDraft(rawDraft) {
+  const source = rawDraft && typeof rawDraft === "object" ? rawDraft : {};
+  const normalized = createEmptyCoordinateDraft();
+  normalized.savedAt = typeof source.savedAt === "string" ? source.savedAt : "";
+  normalized.spawn = normalizeCoordinatePoint(source.spawn, DEFAULT_SPAWN_RADIUS);
+
+  const rawIntersections = source.intersections && typeof source.intersections === "object"
+    ? source.intersections
+    : {};
+  for (const [name, node] of Object.entries(rawIntersections)) {
+    const point = normalizeCoordinatePoint(node, DEFAULT_INTERSECTION_RADIUS);
+    if (!point) continue;
+    const directions = getDirectionOptionsFromNode(node, ["up"]);
+    normalized.intersections[name] = { ...point, directions };
+  }
+
+  const rawBuildings = source.buildings && typeof source.buildings === "object"
+    ? source.buildings
+    : {};
+  for (const [name, node] of Object.entries(rawBuildings)) {
+    const point = normalizeCoordinatePoint(node, DEFAULT_BUILDING_RADIUS);
+    if (!point) continue;
+    normalized.buildings[name] = point;
+  }
+
+  return normalized;
+}
+
 function resetCoordinateDraft() {
   coordinateDraftData = createEmptyCoordinateDraft();
   persistCoordinateDraft();
@@ -255,45 +334,67 @@ function loadCoordinateDraft() {
     if (!raw) return false;
     const parsed = JSON.parse(raw);
     if (!parsed || parsed.map !== "phonemap1.png" || !parsed.draft) return false;
-    coordinateDraftData = {
-      savedAt: typeof parsed.draft.savedAt === "string" ? parsed.draft.savedAt : "",
-      spawn: parsed.draft.spawn || null,
-      intersections: parsed.draft.intersections || {},
-      buildings: parsed.draft.buildings || {}
-    };
+    coordinateDraftData = normalizeCoordinateDraft(parsed.draft);
     return true;
   } catch (error) {
     return false;
   }
 }
 
+const COORD_INTERSECTION_OPTIONS = [
+  { value: "intersection1", label: "Intersection 1" },
+  { value: "intersection2", label: "Intersection 2" },
+  { value: "intersection3", label: "Intersection 3" },
+  { value: "intersection4", label: "Intersection 4" },
+  { value: "intersection5", label: "Intersection 5" },
+  { value: "intersection6", label: "Intersection 6" }
+];
+
+const COORD_BUILDING_OPTIONS = [
+  { value: "sawmill", label: "Sawmill" },
+  { value: "mine", label: "Mine" },
+  { value: "barn", label: "Barn" },
+  { value: "tavern", label: "Tavern" },
+  { value: "windmill", label: "Windmill" },
+  { value: "castle", label: "Castle" }
+];
+
 function getCoordinateEntityOptions(entityType) {
   if (entityType === "spawn") {
     return [{ value: "spawn", label: "Spawn Point" }];
   }
   if (entityType === "intersection") {
-    return [
-      { value: "intersection1", label: "Intersection 1" },
-      { value: "intersection2", label: "Intersection 2" },
-      { value: "intersection3", label: "Intersection 3" },
-      { value: "intersection4", label: "Intersection 4" },
-      { value: "intersection5", label: "Intersection 5" },
-      { value: "intersection6", label: "Intersection 6" }
-    ];
+    return COORD_INTERSECTION_OPTIONS;
   }
-  return [
-    { value: "sawmill", label: "Sawmill" },
-    { value: "mine", label: "Mine" },
-    { value: "barn", label: "Barn" },
-    { value: "tavern", label: "Tavern" },
-    { value: "windmill", label: "Windmill" },
-    { value: "castle", label: "Castle" }
-  ];
+  return COORD_BUILDING_OPTIONS;
+}
+
+function getCoordinateEntity(entityType, entityName) {
+  if (entityType === "spawn") return coordinateDraftData.spawn;
+  if (entityType === "intersection") return coordinateDraftData.intersections[entityName] || null;
+  if (entityType === "building") return coordinateDraftData.buildings[entityName] || null;
+  return null;
+}
+
+function setCoordinateEntity(entityType, entityName, entityValue) {
+  if (entityType === "spawn") {
+    coordinateDraftData.spawn = entityValue;
+    return;
+  }
+  if (entityType === "intersection") {
+    coordinateDraftData.intersections[entityName] = entityValue;
+    return;
+  }
+  if (entityType === "building") {
+    coordinateDraftData.buildings[entityName] = entityValue;
+  }
 }
 
 function rebuildCoordinateEntityDropdown() {
   if (!coordTypeSelect || !coordTargetSelect) return;
-  const options = getCoordinateEntityOptions(coordTypeSelect.value);
+  const currentType = coordTypeSelect.value;
+  const options = getCoordinateEntityOptions(currentType);
+  const previous = coordTargetSelect.value || coordEditState.selectedName;
   coordTargetSelect.innerHTML = "";
   for (const option of options) {
     const item = document.createElement("option");
@@ -301,11 +402,23 @@ function rebuildCoordinateEntityDropdown() {
     item.textContent = option.label;
     coordTargetSelect.appendChild(item);
   }
+  const fallback = options[0]?.value || "";
+  const nextTarget = options.some(option => option.value === previous) ? previous : fallback;
+  coordTargetSelect.value = nextTarget;
+  coordEditState.selectedType = currentType;
+  coordEditState.selectedName = nextTarget;
 }
 
 function syncCoordinateDirectionVisibility() {
   if (!coordDirectionWrap || !coordTypeSelect) return;
   coordDirectionWrap.style.display = coordTypeSelect.value === "intersection" ? "block" : "none";
+}
+
+function setSelectedIntersectionDirections(directions) {
+  const unique = getDirectionOptionsFromNode({ directions }, ["up"]);
+  for (const checkbox of coordDirectionChecks) {
+    checkbox.checked = unique.includes(checkbox.value);
+  }
 }
 
 function getSelectedIntersectionDirections() {
@@ -319,26 +432,508 @@ function getSelectedIntersectionDirections() {
   return selected;
 }
 
+function syncDirectionCheckboxesFromSelection() {
+  if (coordEditState.selectedType !== "intersection") return;
+  const node = getCoordinateEntity("intersection", coordEditState.selectedName);
+  const currentDirections = node?.directions || ["up"];
+  setSelectedIntersectionDirections(currentDirections);
+}
+
+function getCoordinateEntityLabel(entityType, entityName) {
+  if (entityType === "spawn") return "Spawn";
+  const options = getCoordinateEntityOptions(entityType);
+  return options.find(option => option.value === entityName)?.label || entityName;
+}
+
+function selectCoordinateEntity(entityType, entityName) {
+  coordEditState.selectedType = entityType;
+  coordEditState.selectedName = entityName;
+
+  if (coordTypeSelect && coordTypeSelect.value !== entityType) {
+    coordTypeSelect.value = entityType;
+    rebuildCoordinateEntityDropdown();
+    syncCoordinateDirectionVisibility();
+  }
+
+  if (coordTargetSelect && coordTargetSelect.value !== entityName) {
+    const options = Array.from(coordTargetSelect.options).map(option => option.value);
+    if (!options.includes(entityName)) {
+      rebuildCoordinateEntityDropdown();
+    }
+    coordTargetSelect.value = entityName;
+  }
+
+  syncCoordinateDirectionVisibility();
+  syncDirectionCheckboxesFromSelection();
+}
+
+function getCoordinateEntitiesForOverlay() {
+  const entities = [];
+  if (coordinateDraftData.spawn) {
+    entities.push({
+      type: "spawn",
+      name: "spawn",
+      label: "Spawn",
+      ...coordinateDraftData.spawn
+    });
+  }
+
+  for (const [name, node] of Object.entries(coordinateDraftData.intersections)) {
+    entities.push({
+      type: "intersection",
+      name,
+      label: getCoordinateEntityLabel("intersection", name),
+      ...node
+    });
+  }
+
+  for (const [name, node] of Object.entries(coordinateDraftData.buildings)) {
+    entities.push({
+      type: "building",
+      name,
+      label: getCoordinateEntityLabel("building", name),
+      ...node
+    });
+  }
+
+  return entities;
+}
+
+function getCoordinateEditorMode() {
+  return coordInteractionMode?.value || "add";
+}
+
+function updateCoordinateEditorHint() {
+  if (!coordEditorHint) return;
+  const mode = getCoordinateEditorMode();
+  if (mode === "move") {
+    coordEditorHint.textContent = "Move mode: long-press a hitbox, then drag to move it.";
+    return;
+  }
+  if (mode === "resize") {
+    coordEditorHint.textContent = "Resize mode: place two fingers near a hitbox and pinch to resize it.";
+    return;
+  }
+  coordEditorHint.textContent = "Add mode: tap to place/update hitbox for selected target.";
+}
+
+function updateCoordinateOutput() {
+  if (!coordOutput) return;
+  const payload = getCoordinatePayload();
+  coordOutput.value = JSON.stringify(payload, null, 2);
+}
+
+function recordCoordinateAtPoint(point) {
+  const entityType = coordEditState.selectedType || coordTypeSelect?.value || "spawn";
+  const entityName = coordEditState.selectedName || coordTargetSelect?.value || "spawn";
+  const existing = getCoordinateEntity(entityType, entityName);
+  const radius = clampEditorRadius(existing?.radius, getDefaultRadiusForType(entityType));
+  const normalizedPoint = {
+    x: Math.round(point.x),
+    y: Math.round(point.y),
+    radius
+  };
+
+  if (entityType === "intersection") {
+    const directions = getSelectedIntersectionDirections();
+    setCoordinateEntity(entityType, entityName, { ...normalizedPoint, directions });
+  } else {
+    setCoordinateEntity(entityType, entityName, normalizedPoint);
+  }
+
+  coordinateDraftData.savedAt = new Date().toISOString();
+  persistCoordinateDraft();
+  updateCoordinateOutput();
+  selectCoordinateEntity(entityType, entityName);
+
+  if (coordStatus) {
+    const action = existing ? "Updated" : "Saved";
+    coordStatus.textContent = `${action} ${getCoordinateEntityLabel(entityType, entityName)} at x:${normalizedPoint.x}, y:${normalizedPoint.y}`;
+  }
+}
+
+function findNearestCoordinateEntity(worldX, worldY, extraRadius = 16) {
+  let best = null;
+  for (const entity of getCoordinateEntitiesForOverlay()) {
+    const radius = clampEditorRadius(entity.radius, getDefaultRadiusForType(entity.type));
+    const distance = Math.hypot(worldX - entity.x, worldY - entity.y);
+    if (distance > radius + extraRadius) continue;
+    if (!best || distance < best.distance) {
+      best = { ...entity, distance };
+    }
+  }
+  return best;
+}
+
+function clearEditorHoldTimer() {
+  if (!editorHoldTimer) return;
+  clearTimeout(editorHoldTimer);
+  editorHoldTimer = null;
+  editorHoldTouchId = null;
+}
+
+function beginHitboxDrag(entity, worldX, worldY) {
+  const node = getCoordinateEntity(entity.type, entity.name);
+  if (!node) return;
+  editorDragEntity = {
+    type: entity.type,
+    name: entity.name,
+    offsetX: worldX - node.x,
+    offsetY: worldY - node.y,
+    changed: false
+  };
+  selectCoordinateEntity(entity.type, entity.name);
+}
+
+function updateHitboxDrag(worldX, worldY) {
+  if (!editorDragEntity) return;
+  const node = getCoordinateEntity(editorDragEntity.type, editorDragEntity.name);
+  if (!node) return;
+  node.x = Math.round(worldX - editorDragEntity.offsetX);
+  node.y = Math.round(worldY - editorDragEntity.offsetY);
+  editorDragEntity.changed = true;
+  coordinateDraftData.savedAt = new Date().toISOString();
+  updateCoordinateOutput();
+}
+
+function finalizeHitboxDrag() {
+  if (!editorDragEntity) return;
+  const changed = editorDragEntity.changed;
+  const type = editorDragEntity.type;
+  const name = editorDragEntity.name;
+  editorDragEntity = null;
+  if (!changed) return;
+  persistCoordinateDraft();
+  if (coordStatus) {
+    coordStatus.textContent = `Moved ${getCoordinateEntityLabel(type, name)}.`;
+  }
+}
+
+function beginPinchResize(touchA, touchB) {
+  const worldMid = getWorldPointFromClient(
+    (touchA.clientX + touchB.clientX) / 2,
+    (touchA.clientY + touchB.clientY) / 2
+  );
+  const picked = findNearestCoordinateEntity(worldMid.x, worldMid.y, 28);
+  if (!picked) return false;
+  const node = getCoordinateEntity(picked.type, picked.name);
+  if (!node) return false;
+  editorPinchEntity = {
+    type: picked.type,
+    name: picked.name,
+    changed: false
+  };
+  editorPinchInitialDistance = Math.hypot(
+    touchA.clientX - touchB.clientX,
+    touchA.clientY - touchB.clientY
+  ) || 1;
+  editorPinchInitialRadius = clampEditorRadius(node.radius, getDefaultRadiusForType(picked.type));
+  selectCoordinateEntity(picked.type, picked.name);
+  return true;
+}
+
+function updatePinchResize(touchA, touchB) {
+  if (!editorPinchEntity) return;
+  const node = getCoordinateEntity(editorPinchEntity.type, editorPinchEntity.name);
+  if (!node) return;
+  const currentDistance = Math.hypot(
+    touchA.clientX - touchB.clientX,
+    touchA.clientY - touchB.clientY
+  ) || 1;
+  const ratio = currentDistance / editorPinchInitialDistance;
+  const nextRadius = clampEditorRadius(editorPinchInitialRadius * ratio, editorPinchInitialRadius);
+  if (node.radius === nextRadius) return;
+  node.radius = nextRadius;
+  editorPinchEntity.changed = true;
+  coordinateDraftData.savedAt = new Date().toISOString();
+  updateCoordinateOutput();
+}
+
+function finalizePinchResize() {
+  if (!editorPinchEntity) return;
+  const changed = editorPinchEntity.changed;
+  const type = editorPinchEntity.type;
+  const name = editorPinchEntity.name;
+  editorPinchEntity = null;
+  if (!changed) return;
+  persistCoordinateDraft();
+  if (coordStatus) {
+    coordStatus.textContent = `Resized ${getCoordinateEntityLabel(type, name)} hitbox.`;
+  }
+}
+
+function updateSelectedIntersectionDirectionsFromUI() {
+  if (coordEditState.selectedType !== "intersection") return;
+  const node = getCoordinateEntity("intersection", coordEditState.selectedName);
+  if (!node) return;
+  node.directions = getSelectedIntersectionDirections();
+  coordinateDraftData.savedAt = new Date().toISOString();
+  persistCoordinateDraft();
+  updateCoordinateOutput();
+}
+
+function isCoordinateEditorActive() {
+  return isAdminUser && isCoordinateModeEnabled;
+}
+
+function getWorldPointFromClient(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left - offsetX) / scaleX,
+    y: (clientY - rect.top - offsetY) / scaleY
+  };
+}
+
+function getTouchById(touches, touchId) {
+  for (let i = 0; i < touches.length; i++) {
+    if (touches[i].identifier === touchId) return touches[i];
+  }
+  return null;
+}
+
+function onCanvasClick(event) {
+  if (isCoordinateEditorActive() && Date.now() < coordEditorSuppressTapUntil) {
+    return;
+  }
+  handleTap(event.clientX, event.clientY);
+}
+
+function onCanvasTouchStart(event) {
+  if (event.cancelable) event.preventDefault();
+
+  if (!isCoordinateEditorActive()) {
+    return;
+  }
+
+  const mode = getCoordinateEditorMode();
+  const touches = event.touches;
+
+  if (touches.length >= 2 && mode === "resize") {
+    clearEditorHoldTimer();
+    if (beginPinchResize(touches[0], touches[1])) {
+      coordEditorSuppressTapUntil = Date.now() + EDITOR_HOLD_MS;
+    }
+    return;
+  }
+
+  if (touches.length !== 1) return;
+  const touch = touches[0];
+  editorTapTouchId = touch.identifier;
+  editorTapMoved = false;
+  editorTapLastClientX = touch.clientX;
+  editorTapLastClientY = touch.clientY;
+  editorHoldStartX = touch.clientX;
+  editorHoldStartY = touch.clientY;
+  editorHoldTouchId = touch.identifier;
+  clearEditorHoldTimer();
+
+  if (mode !== "move") return;
+
+  editorHoldTimer = setTimeout(() => {
+    if (!isCoordinateEditorActive() || getCoordinateEditorMode() !== "move") return;
+    const world = getWorldPointFromClient(editorTapLastClientX, editorTapLastClientY);
+    const target = findNearestCoordinateEntity(world.x, world.y, 20);
+    if (!target) return;
+    beginHitboxDrag(target, world.x, world.y);
+    coordEditorSuppressTapUntil = Date.now() + EDITOR_HOLD_MS;
+  }, EDITOR_HOLD_MS);
+}
+
+function onCanvasTouchMove(event) {
+  if (event.cancelable) event.preventDefault();
+
+  if (!isCoordinateEditorActive()) {
+    return;
+  }
+
+  const mode = getCoordinateEditorMode();
+  const touches = event.touches;
+
+  if (editorTapTouchId !== null) {
+    const tracked = getTouchById(touches, editorTapTouchId);
+    if (tracked) {
+      editorTapLastClientX = tracked.clientX;
+      editorTapLastClientY = tracked.clientY;
+      const moved = Math.hypot(
+        tracked.clientX - editorHoldStartX,
+        tracked.clientY - editorHoldStartY
+      );
+      if (moved > EDITOR_MOVE_CANCEL_PX) {
+        editorTapMoved = true;
+        if (!editorDragEntity) {
+          clearEditorHoldTimer();
+        }
+      }
+    }
+  }
+
+  if (editorDragEntity && editorTapTouchId !== null) {
+    const dragTouch = getTouchById(touches, editorTapTouchId);
+    if (dragTouch) {
+      const world = getWorldPointFromClient(dragTouch.clientX, dragTouch.clientY);
+      updateHitboxDrag(world.x, world.y);
+      coordEditorSuppressTapUntil = Date.now() + 120;
+      return;
+    }
+  }
+
+  if (mode === "resize" && touches.length >= 2) {
+    if (!editorPinchEntity) {
+      if (beginPinchResize(touches[0], touches[1])) {
+        coordEditorSuppressTapUntil = Date.now() + EDITOR_HOLD_MS;
+      }
+    } else {
+      updatePinchResize(touches[0], touches[1]);
+      coordEditorSuppressTapUntil = Date.now() + 120;
+    }
+  }
+}
+
+function onCanvasTouchEnd(event) {
+  if (event.cancelable) event.preventDefault();
+
+  const mode = getCoordinateEditorMode();
+
+  if (editorDragEntity && event.touches.length === 0) {
+    finalizeHitboxDrag();
+  }
+
+  if (editorPinchEntity && event.touches.length < 2) {
+    finalizePinchResize();
+  }
+
+  clearEditorHoldTimer();
+
+  if (!isCoordinateEditorActive()) {
+    const touch = event.changedTouches[0];
+    if (touch) {
+      handleTap(touch.clientX, touch.clientY);
+    }
+    return;
+  }
+
+  if (
+    mode === "add" &&
+    !editorDragEntity &&
+    !editorPinchEntity &&
+    Date.now() >= coordEditorSuppressTapUntil
+  ) {
+    let touch = null;
+    if (editorTapTouchId !== null) {
+      touch = getTouchById(event.changedTouches, editorTapTouchId);
+    }
+    if (!touch) touch = event.changedTouches[0];
+    if (touch && !editorTapMoved) {
+      handleTap(touch.clientX, touch.clientY);
+    }
+  }
+
+  if (event.touches.length === 0) {
+    editorTapTouchId = null;
+    editorTapMoved = false;
+  }
+}
+
+function onCanvasTouchCancel() {
+  clearEditorHoldTimer();
+  finalizeHitboxDrag();
+  finalizePinchResize();
+  editorTapTouchId = null;
+  editorTapMoved = false;
+}
+
+function bindCoordinateCanvasInteractions() {
+  if (coordCanvasInteractionsBound) return;
+  canvas.addEventListener("click", onCanvasClick);
+  canvas.addEventListener("touchstart", onCanvasTouchStart, { passive: false });
+  canvas.addEventListener("touchmove", onCanvasTouchMove, { passive: false });
+  canvas.addEventListener("touchend", onCanvasTouchEnd, { passive: false });
+  canvas.addEventListener("touchcancel", onCanvasTouchCancel, { passive: false });
+  coordCanvasInteractionsBound = true;
+}
+
+function drawCoordinateEditorOverlay() {
+  if (!isCoordinateEditorActive()) return;
+  const entities = getCoordinateEntitiesForOverlay();
+  if (entities.length === 0) return;
+
+  ctx.save();
+  ctx.lineWidth = 3;
+  ctx.font = "15px Arial";
+  ctx.textBaseline = "middle";
+
+  for (const entity of entities) {
+    const radius = clampEditorRadius(entity.radius, getDefaultRadiusForType(entity.type));
+    const selected = entity.type === coordEditState.selectedType && entity.name === coordEditState.selectedName;
+    const color = entity.type === "spawn"
+      ? "#4cc9f0"
+      : entity.type === "intersection"
+        ? "#ffe66d"
+        : "#ff7aa2";
+
+    ctx.beginPath();
+    ctx.arc(entity.x, entity.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = selected ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.18)";
+    ctx.fill();
+    ctx.strokeStyle = selected ? "#ffffff" : color;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(entity.x, entity.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = selected ? "#ffffff" : color;
+    ctx.fill();
+
+    const label = `${entity.label} (${radius})`;
+    const textWidth = ctx.measureText(label).width;
+    const labelX = entity.x - textWidth / 2 - 6;
+    const labelY = entity.y - radius - 20;
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(labelX, labelY - 8, textWidth + 12, 18);
+    ctx.fillStyle = selected ? "#ffffff" : color;
+    ctx.fillText(label, entity.x - textWidth / 2, labelY + 1);
+
+    if (entity.type === "intersection") {
+      const directions = getDirectionOptionsFromNode(entity, []);
+      if (directions.length > 0) {
+        const dirLabel = directions.join(",");
+        const dirWidth = ctx.measureText(dirLabel).width;
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillRect(entity.x - dirWidth / 2 - 5, labelY + 12 - 8, dirWidth + 10, 16);
+        ctx.fillStyle = "#e8f7ff";
+        ctx.fillText(dirLabel, entity.x - dirWidth / 2, labelY + 12);
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
 function setupCoordinateEditor() {
   if (!coordTypeSelect || !coordTargetSelect) return;
 
   coordTypeSelect.addEventListener("change", () => {
     rebuildCoordinateEntityDropdown();
     syncCoordinateDirectionVisibility();
+    selectCoordinateEntity(coordTypeSelect.value, coordTargetSelect.value || "spawn");
+    updateCoordinateEditorHint();
   });
 
-  if (coordRecordButton) {
-    coordRecordButton.addEventListener("click", () => {
-      if (coordStatus) {
-        coordStatus.textContent = "Pick point type/target, then click on the map to record.";
-      }
-    });
+  coordTargetSelect.addEventListener("change", () => {
+    selectCoordinateEntity(coordTypeSelect.value, coordTargetSelect.value || "spawn");
+  });
+
+  for (const checkbox of coordDirectionChecks) {
+    checkbox.addEventListener("change", updateSelectedIntersectionDirectionsFromUI);
+  }
+
+  if (coordInteractionMode) {
+    coordInteractionMode.addEventListener("change", updateCoordinateEditorHint);
   }
 
   if (coordClearButton) {
     coordClearButton.addEventListener("click", () => {
       resetCoordinateDraft();
-      if (coordStatus) coordStatus.textContent = "Cleared captured points.";
+      if (coordStatus) coordStatus.textContent = "Cleared captured hitboxes.";
     });
   }
 
@@ -361,11 +956,14 @@ function setupCoordinateEditor() {
   } else {
     updateCoordinateOutput();
   }
+  selectCoordinateEntity(coordTypeSelect.value || "spawn", coordTargetSelect.value || "spawn");
+  updateCoordinateEditorHint();
   const linkedName = localStorage.getItem(COORD_LINKED_FILENAME_KEY);
   if (linkedName && coordStatus) {
     coordStatus.textContent = `Saved file linked before: ${linkedName}. Link again this session to auto-save.`;
   }
   syncCoordPanelCollapsedUI();
+  bindCoordinateCanvasInteractions();
 }
 
 function updateCoordinateUIVisibility() {
@@ -384,57 +982,7 @@ function updateCoordinateUIVisibility() {
 
 function recordCoordinateFromLastTap() {
   if (!isAdminUser || !isCoordinateModeEnabled || !lastTappedCoordinate) return;
-  if (!coordTypeSelect || !coordTargetSelect || !coordReadout) return;
-
-  const point = { x: Math.round(lastTappedCoordinate.x), y: Math.round(lastTappedCoordinate.y) };
-  const entityType = coordTypeSelect.value;
-  const entityName = coordTargetSelect.value;
-
-  if (entityType === "spawn") {
-    const wasSet = Boolean(coordinateDraftData.spawn);
-    coordinateDraftData.spawn = point;
-    coordinateDraftData.savedAt = new Date().toISOString();
-    persistCoordinateDraft();
-    if (coordStatus) {
-      coordStatus.textContent = wasSet
-        ? `Updated spawn to x:${point.x}, y:${point.y}`
-        : `Saved spawn at x:${point.x}, y:${point.y}`;
-    }
-    updateCoordinateOutput();
-    return;
-  }
-
-  if (entityType === "intersection") {
-    const wasSet = Boolean(coordinateDraftData.intersections[entityName]);
-    const directions = getSelectedIntersectionDirections();
-    coordinateDraftData.intersections[entityName] = { ...point, directions };
-    coordinateDraftData.savedAt = new Date().toISOString();
-    persistCoordinateDraft();
-    if (coordStatus) {
-      coordStatus.textContent = wasSet
-        ? `Updated ${entityName} to x:${point.x}, y:${point.y}, dirs:${directions.join(",")}`
-        : `Saved ${entityName} at x:${point.x}, y:${point.y}, dirs:${directions.join(",")}`;
-    }
-    updateCoordinateOutput();
-    return;
-  }
-
-  const wasSet = Boolean(coordinateDraftData.buildings[entityName]);
-  coordinateDraftData.buildings[entityName] = point;
-  coordinateDraftData.savedAt = new Date().toISOString();
-  persistCoordinateDraft();
-  if (coordStatus) {
-    coordStatus.textContent = wasSet
-      ? `Updated ${entityName} to x:${point.x}, y:${point.y}`
-      : `Saved ${entityName} at x:${point.x}, y:${point.y}`;
-  }
-  updateCoordinateOutput();
-}
-
-function updateCoordinateOutput() {
-  if (!coordOutput) return;
-  const payload = getCoordinatePayload();
-  coordOutput.value = JSON.stringify(payload, null, 2);
+  recordCoordinateAtPoint(lastTappedCoordinate);
 }
 
 function toggleCoordPanelCollapse() {
@@ -1401,7 +1949,7 @@ function update() {
       if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
     }
 
-    checkBuildings(cart);
+    checkBuildings(cart, prevX, prevY);
   }
 
   if (usePhoneMap()) {
@@ -1434,7 +1982,7 @@ function segmentHitsCircle(ax, ay, bx, by, cx, cy, r) {
   return Math.hypot(px - cx, py - cy) <= r;
 }
 
-function checkBuildings(cart) {
+function checkBuildings(cart, prevX, prevY) {
   const map = getMap();
   const hitRadius = Math.max(20, Math.round(CART_SIZE * 0.18));
 
@@ -1474,8 +2022,20 @@ function handleTap(clientX, clientY) {
     coordReadout.style.display = "block";
     coordReadout.textContent = `x: ${Math.round(worldX)}, y: ${Math.round(worldY)}`;
   }
-  if (isAdminUser && isCoordinateModeEnabled) {
-    recordCoordinateFromLastTap();
+  if (isCoordinateEditorActive()) {
+    const mode = getCoordinateEditorMode();
+    const picked = findNearestCoordinateEntity(worldX, worldY, 14);
+    if (picked && (picked.type !== coordEditState.selectedType || picked.name !== coordEditState.selectedName)) {
+      selectCoordinateEntity(picked.type, picked.name);
+      if (coordStatus) {
+        coordStatus.textContent = `Selected ${getCoordinateEntityLabel(picked.type, picked.name)}.`;
+      }
+      return;
+    }
+    if (mode === "add") {
+      recordCoordinateFromLastTap();
+    }
+    return;
   }
   if (gameState !== "playing" || isPhoneLevel1CoordinatePhaseActive()) return;
 
@@ -1523,13 +2083,6 @@ function handleTap(clientX, clientY) {
   }
 }
 
-canvas.addEventListener("click", e => handleTap(e.clientX, e.clientY));
-canvas.addEventListener("touchend", e => {
-  if (e.cancelable) e.preventDefault();
-  const t = e.changedTouches[0];
-  if (t) handleTap(t.clientX, t.clientY);
-}, { passive: false });
-
 /* ================= DRAW ================= */
 
 function draw() {
@@ -1537,11 +2090,15 @@ function draw() {
   ctx.setTransform(scaleX * dpr, 0, 0, scaleY * dpr, offsetX * dpr, offsetY * dpr);
   ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   ctx.drawImage(mapImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-  if (isPhoneLevel1CoordinatePhaseActive()) return;
+  if (isPhoneLevel1CoordinatePhaseActive()) {
+    drawCoordinateEditorOverlay();
+    return;
+  }
 
   drawArrows();
   drawCarts();
   drawHUD();
+  drawCoordinateEditorOverlay();
 }
 
 function drawArrows() {
