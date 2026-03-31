@@ -110,6 +110,9 @@ function setUnlockedLevel(level) {
 }
 
 function canAccessLevel(level) {
+  if (usePhoneMap()) {
+    return level === 1;
+  }
   return isAdminUser || level <= unlockedLevel;
 }
 
@@ -675,10 +678,15 @@ resize();
 /* ================= LEVEL MENU ================= */
 
 function renderLevelMenu() {
+  if (usePhoneMap()) {
+    menuTitle.textContent = "Phone Map Setup";
+    menuSubtitle.textContent = "Phone mode is locked to Map 1 only.";
+  } else {
   menuTitle.textContent = isAdminUser ? "Admin Level Menu" : "Select Level";
   menuSubtitle.textContent = isAdminUser
     ? `Logged in as admin. All ${LEVEL_COUNT} levels are unlocked.`
     : `Logged in as ${currentUser}. Unlocked up to Level ${unlockedLevel}.`;
+  }
   levelButtons.innerHTML = "";
 
   for (let level = 1; level <= LEVEL_COUNT; level++) {
@@ -703,6 +711,7 @@ function renderLevelMenu() {
 }
 
 function selectLevel(level) {
+  if (usePhoneMap() && level !== 1) return;
   if (!canAccessLevel(level)) return;
   hasStartedLevel = true;
   ui.style.display = "none";
@@ -1080,6 +1089,9 @@ async function sendBugReport() {
 /* ================= LEVEL LOAD ================= */
 
 function loadLevel(level) {
+  if (usePhoneMap()) {
+    level = 1;
+  }
   currentLevel = level;
   if (currentUser && !isAdminUser) {
     saveUserProgress();
@@ -1087,7 +1099,7 @@ function loadLevel(level) {
   score = 0;
   spawnTimer = 0;
   activeCarts = [];
-  const map = level === 1 ? MAP02 : level === 2 ? MAP03 : level === 3 ? MAP04 : MAP05;
+  const map = currentLevel === 1 ? MAP02 : currentLevel === 2 ? MAP03 : currentLevel === 3 ? MAP04 : MAP05;
   const phoneCandidates = [];
   if (map.mapPhone) phoneCandidates.push(map.mapPhone);
   if (map.mapPhoneFallback) phoneCandidates.push(map.mapPhoneFallback);
@@ -1283,6 +1295,9 @@ function update() {
     checkBuildings(cart);
   }
 
+  if (usePhoneMap()) {
+    return;
+  }
   if (currentLevel === 1 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(2);
     loadLevel(2);
