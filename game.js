@@ -1393,7 +1393,7 @@ function openLevelMenu() {
 function closeLevelMenu() {
   levelMenu.style.display = "none";
   topControls.style.display = "flex";
-  if (hasStartedLevel && gameState !== "lose" && !isPhoneLevel1CoordinatePhaseActive()) {
+  if (hasStartedLevel && gameState !== "lose" && !isPhoneLevel1CoordinatePhaseActive() && !isCoordinateEditorActive()) {
     gameState = "playing";
   }
 }
@@ -1410,6 +1410,21 @@ function toggleAdminCoordinateMode() {
     coordReadout.textContent = isCoordinateModeEnabled
       ? "Coordinate Mode ON - use Add/Move/Resize from setup panel"
       : "";
+  }
+
+  // Coordinate mode is an editor mode: keep gameplay paused while it's active.
+  if (isCoordinateModeEnabled) {
+    if (gameState === "playing") {
+      gameState = "paused";
+    }
+  } else if (
+    hasStartedLevel &&
+    levelMenu.style.display === "none" &&
+    bugReportModal.style.display !== "flex" &&
+    gameState !== "lose" &&
+    !isPhoneLevel1CoordinatePhaseActive()
+  ) {
+    gameState = "playing";
   }
   updateCoordinateUIVisibility();
 }
@@ -1431,7 +1446,7 @@ function openBugReport() {
 
 function closeBugReport() {
   bugReportModal.style.display = "none";
-  if (levelMenu.style.display === "none" && hasStartedLevel && gameState !== "lose") {
+  if (levelMenu.style.display === "none" && hasStartedLevel && gameState !== "lose" && !isCoordinateEditorActive()) {
     gameState = "playing";
     topControls.style.display = "flex";
   }
@@ -1819,6 +1834,9 @@ function resetGame() {
   if (isPhoneLevel1CoordinatePhaseActive()) {
     gameState = "paused";
   }
+  if (isCoordinateEditorActive()) {
+    gameState = "paused";
+  }
 
   intersections = {};
 
@@ -1907,6 +1925,7 @@ function spawnCart() {
 
 function update() {
   if (isPhoneLevel1CoordinatePhaseActive()) return;
+  if (isCoordinateEditorActive()) return;
   if (gameState !== "playing") return;
 
   spawnTimer++;
