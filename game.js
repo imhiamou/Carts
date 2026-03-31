@@ -160,10 +160,10 @@ const WORLD_HEIGHT = 900;
 
 /* ================= SIZE ================= */
 
-const CART_SIZE = 170;
+const CART_SIZE = 210;
 const ARROW_SIZE = 50;
 const TAP_RADIUS = 80;
-const INTERSECTION_RADIUS = 8;
+const INTERSECTION_RADIUS = 24;
 
 function isPhone() {
   if (window.matchMedia("(max-width: 900px)").matches) return true;
@@ -203,6 +203,19 @@ function getDirectionOptionsFromNode(node, fallback = []) {
     if (unique.length > 0) return unique;
   }
   return [...fallback];
+}
+
+function segmentCrossesIntersectionCenter(prevX, prevY, nextX, nextY, centerX, centerY, tolerance = 1.5) {
+  const dx = nextX - prevX;
+  const dy = nextY - prevY;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(prevX - centerX, prevY - centerY) <= tolerance;
+  }
+  const lengthSq = dx * dx + dy * dy;
+  const t = Math.max(0, Math.min(1, ((centerX - prevX) * dx + (centerY - prevY) * dy) / lengthSq));
+  const closestX = prevX + t * dx;
+  const closestY = prevY + t * dy;
+  return Math.hypot(closestX - centerX, closestY - centerY) <= tolerance;
 }
 
 function createEmptyCoordinateDraft() {
@@ -1324,7 +1337,7 @@ function spawnCart() {
   const speed = BASE_SPEED + speedBoost;
 
   const cartImg = randomDest === "castle" ? CART_IMAGES.princess : CART_IMAGES[randomDest];
-  const spawnRight = currentLevel === 3;
+  const spawnRight = currentLevel === 3 && !isPhoneMap1Active();
   const spawnUp = !spawnRight;
   activeCarts.push({
     x: map.spawn.x,
@@ -1371,29 +1384,21 @@ function update() {
 
     for (const key in map.intersections) {
       const node = map.intersections[key];
-      const radius = currentLevel === 4 ? 22 : INTERSECTION_RADIUS;
-      const hit = segmentHitsCircle(
-        prevX, prevY,
-        cart.x, cart.y,
-        node.x, node.y,
-        radius
-      );
-
-      if (hit && !cart[key]) {
-        const dir = intersections[key];
-
-        if (currentLevel === 4) {
-          cart.x = node.x;
-          cart.y = node.y;
-        }
-
-        if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
-        if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
-        if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
-        if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
-
-        cart[key] = true;
+      if (!segmentCrossesIntersectionCenter(prevX, prevY, cart.x, cart.y, node.x, node.y)) {
+        continue;
       }
+
+      const dir = intersections[key];
+      if (!dir) continue;
+
+      // Coordinates are defined as center points, so snap to exact center before turning.
+      cart.x = node.x;
+      cart.y = node.y;
+
+      if (dir === "up") { cart.vx = 0; cart.vy = -cart.speed; }
+      if (dir === "left") { cart.vx = -cart.speed; cart.vy = 0; }
+      if (dir === "right") { cart.vx = cart.speed; cart.vy = 0; }
+      if (dir === "down") { cart.vx = 0; cart.vy = cart.speed; }
     }
 
     checkBuildings(cart);
@@ -1431,9 +1436,7 @@ function segmentHitsCircle(ax, ay, bx, by, cx, cy, r) {
 
 function checkBuildings(cart) {
   const map = getMap();
-  const prevX = cart.x - cart.vx;
-  const prevY = cart.y - cart.vy;
-  const hitRadius = 20;
+  const hitRadius = Math.max(20, Math.round(CART_SIZE * 0.18));
 
   for (const key in map.buildings) {
     const node = map.buildings[key];
