@@ -39,6 +39,9 @@ const reviveTimer = document.getElementById("reviveTimer");
 const reviveContinueButton = document.getElementById("reviveContinueButton");
 const reviveTakePicButton = document.getElementById("reviveTakePicButton");
 const reviveRetryButton = document.getElementById("reviveRetryButton");
+const scoreMilestoneModal = document.getElementById("scoreMilestoneModal");
+const scoreMilestoneMessage = document.getElementById("scoreMilestoneMessage");
+const scoreMilestoneContinueButton = document.getElementById("scoreMilestoneContinueButton");
 
 /* ================= AUTH / SESSION ================= */
 
@@ -67,6 +70,7 @@ let hasUsedRevive = false;
 let reviveMediaStream = null;
 let reviveRequestInProgress = false;
 let reviveCapturedPhotoDataUrl = "";
+let pendingLevelUp = null;
 let isCoordinateModeEnabled = false;
 let lastTappedCoordinate = null;
 let coordinateDraftData = createEmptyCoordinateDraft();
@@ -1519,6 +1523,30 @@ function closeReviveModal() {
   reviveModal.style.display = "none";
 }
 
+function openLevelUpSelfieModal(nextLevel) {
+  pendingLevelUp = nextLevel;
+  if (scoreMilestoneMessage) {
+    scoreMilestoneMessage.textContent = "You reached 3000 score. Ask for a selfie.";
+  }
+  if (scoreMilestoneModal) {
+    scoreMilestoneModal.style.display = "flex";
+  }
+  topControls.style.display = "none";
+  gameState = "paused";
+}
+
+function continueAfterLevelUpSelfiePrompt() {
+  if (scoreMilestoneModal) {
+    scoreMilestoneModal.style.display = "none";
+  }
+  topControls.style.display = "flex";
+  const nextLevel = pendingLevelUp;
+  pendingLevelUp = null;
+  if (typeof nextLevel === "number") {
+    loadLevel(nextLevel);
+  }
+}
+
 function createStreamKey() {
   return `revive_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -2062,15 +2090,18 @@ function update() {
   }
   if (currentLevel === 1 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(2);
-    loadLevel(2);
+    openLevelUpSelfieModal(2);
+    return;
   }
   if (currentLevel === 2 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(3);
-    loadLevel(3);
+    openLevelUpSelfieModal(3);
+    return;
   }
   if (currentLevel === 3 && score >= LEVEL_UP_SCORE) {
     setUnlockedLevel(4);
-    loadLevel(4);
+    openLevelUpSelfieModal(4);
+    return;
   }
 }
 
@@ -2331,6 +2362,9 @@ if (ENABLE_REVIVE_SECOND_CHANCE) {
   if (reviveContinueButton) reviveContinueButton.addEventListener("click", openReviveCamera);
   if (reviveTakePicButton) reviveTakePicButton.addEventListener("click", takeReviveSelfie);
   if (reviveRetryButton) reviveRetryButton.addEventListener("click", retakeReviveSelfie);
+}
+if (scoreMilestoneContinueButton) {
+  scoreMilestoneContinueButton.addEventListener("click", continueAfterLevelUpSelfiePrompt);
 }
 if (coordinateModeButton) {
   coordinateModeButton.addEventListener("click", toggleAdminCoordinateMode);
