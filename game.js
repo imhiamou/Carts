@@ -156,6 +156,7 @@ function ensureSession() {
     }
     currentUser = parsed.username;
     isAdminUser = account.isAdmin;
+    isCoordinateModeEnabled = isAdminUser;
     if (isAdminUser) {
       unlockedLevel = LEVEL_COUNT;
       currentLevel = 1;
@@ -1407,7 +1408,7 @@ function toggleAdminCoordinateMode() {
   if (coordReadout) {
     coordReadout.style.display = isCoordinateModeEnabled ? "block" : "none";
     coordReadout.textContent = isCoordinateModeEnabled
-      ? "Coordinate Mode ON - tap map, choose type/name/direction, then Record"
+      ? "Coordinate Mode ON - use Add/Move/Resize from setup panel"
       : "";
   }
   updateCoordinateUIVisibility();
