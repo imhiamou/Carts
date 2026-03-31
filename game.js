@@ -2239,11 +2239,45 @@ function drawCarts() {
 }
 
 function drawHUD() {
-  ctx.fillStyle = "white";
-  ctx.font = "28px Arial";
-  ctx.fillText("Level: " + currentLevel, 20, 40);
-  ctx.fillText("Score: " + score, 20, 75);
-  ctx.fillText("Lives: " + lives, 20, 110);
+  const levelText = `Level ${currentLevel}`;
+  const scoreText = `SCORE ${score}`;
+  const livesText = `LIVES LEFT ${lives}`;
+
+  // Level text
+  ctx.font = "700 24px Arial";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+  ctx.fillRect(14, 14, 170, 34);
+  ctx.fillStyle = "#f4f7ff";
+  ctx.fillText(levelText, 22, 31);
+
+  // Highlighted score badge
+  ctx.font = "900 28px Arial";
+  const scoreWidth = ctx.measureText(scoreText).width;
+  const scoreBadgeWidth = scoreWidth + 28;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fillRect(14, 56, scoreBadgeWidth, 42);
+  ctx.fillStyle = "#ffd84a";
+  ctx.fillRect(18, 60, scoreBadgeWidth - 8, 34);
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(18, 60, scoreBadgeWidth - 8, 34);
+  ctx.fillStyle = "#1b1400";
+  ctx.fillText(scoreText, 28, 77);
+
+  // Highlighted lives-left badge
+  ctx.font = "900 26px Arial";
+  const livesWidth = ctx.measureText(livesText).width;
+  const livesBadgeWidth = livesWidth + 28;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fillRect(14, 104, livesBadgeWidth, 42);
+  ctx.fillStyle = lives <= 1 ? "#ff5a5a" : "#67f596";
+  ctx.fillRect(18, 108, livesBadgeWidth - 8, 34);
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(18, 108, livesBadgeWidth - 8, 34);
+  ctx.fillStyle = "#0b140d";
+  ctx.fillText(livesText, 28, 125);
 }
 
 /* ================= LOOP ================= */
