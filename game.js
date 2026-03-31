@@ -36,7 +36,10 @@ const reviveVideo = document.getElementById("reviveVideo");
 const revivePhoto = document.getElementById("revivePhoto");
 const reviveStatus = document.getElementById("reviveStatus");
 const reviveTimer = document.getElementById("reviveTimer");
-const reviveContinueButton = document.getElementById("reviveContinueButton");
+const reviveOpenCameraButton = document.getElementById("reviveOpenCameraButton");
+const reviveCaptureButton = document.getElementById("reviveCaptureButton");
+const reviveRetryButton = document.getElementById("reviveRetryButton");
+const reviveSendButton = document.getElementById("reviveSendButton");
 
 /* ================= AUTH / SESSION ================= */
 
@@ -64,6 +67,7 @@ let isMuted = false;
 let hasUsedRevive = false;
 let reviveMediaStream = null;
 let reviveRequestInProgress = false;
+let reviveCapturedPhotoDataUrl = "";
 let isCoordinateModeEnabled = false;
 let lastTappedCoordinate = null;
 let coordinateDraftData = createEmptyCoordinateDraft();
@@ -1486,7 +1490,23 @@ function resetReviveModalState() {
   reviveVideo.style.display = "none";
   revivePhoto.style.display = "none";
   revivePhoto.src = "";
-  reviveContinueButton.disabled = false;
+  reviveCapturedPhotoDataUrl = "";
+  if (reviveOpenCameraButton) {
+    reviveOpenCameraButton.disabled = false;
+    reviveOpenCameraButton.style.display = "inline-block";
+  }
+  if (reviveCaptureButton) {
+    reviveCaptureButton.disabled = false;
+    reviveCaptureButton.style.display = "none";
+  }
+  if (reviveRetryButton) {
+    reviveRetryButton.disabled = false;
+    reviveRetryButton.style.display = "none";
+  }
+  if (reviveSendButton) {
+    reviveSendButton.disabled = false;
+    reviveSendButton.style.display = "none";
+  }
   reviveStatus.textContent = "";
   reviveTimer.textContent = "";
 }
@@ -1519,32 +1539,90 @@ async function requestCameraWithConsent() {
   });
 }
 
-async function submitReviveSelfie() {
+async function startReviveCameraPreview() {
+  const stream = await requestCameraWithConsent();
+  reviveMediaStream = stream;
+  reviveVideo.srcObject = stream;
+  reviveVideo.style.display = "block";
+  revivePhoto.style.display = "none";
+  await reviveVideo.play();
+  reviveCapturedPhotoDataUrl = "";
+  if (reviveOpenCameraButton) {
+    reviveOpenCameraButton.style.display = "none";
+  }
+  if (reviveCaptureButton) {
+    reviveCaptureButton.style.display = "inline-block";
+  }
+  if (reviveSendButton) {
+    reviveSendButton.style.display = "none";
+  }
+  if (reviveRetryButton) {
+    reviveRetryButton.style.display = "none";
+  }
+}
+
+function captureRevivePhotoFromPreview() {
+  const shotCanvas = document.createElement("canvas");
+  shotCanvas.width = reviveVideo.videoWidth || 480;
+  shotCanvas.height = reviveVideo.videoHeight || 360;
+  const shotCtx = shotCanvas.getContext("2d");
+  shotCtx.drawImage(reviveVideo, 0, 0, shotCanvas.width, shotCanvas.height);
+  const dataUrl = shotCanvas.toDataURL("image/jpeg", 0.9);
+  reviveCapturedPhotoDataUrl = dataUrl;
+  revivePhoto.src = dataUrl;
+  revivePhoto.style.display = "block";
+  reviveVideo.style.display = "none";
+  stopReviveCamera();
+  if (reviveOpenCameraButton) {
+    reviveOpenCameraButton.style.display = "none";
+  }
+  if (reviveCaptureButton) {
+    reviveCaptureButton.style.display = "none";
+  }
+  if (reviveSendButton) {
+    reviveSendButton.style.display = "inline-block";
+  }
+  if (reviveRetryButton) {
+    reviveRetryButton.style.display = "inline-block";
+  }
+  reviveStatus.textContent = "Photo captured. Send it or try again.";
+}
+
+async function openReviveCamera() {
   if (reviveRequestInProgress) return;
   reviveStatus.textContent = "";
   try {
-    const stream = await requestCameraWithConsent();
-    reviveMediaStream = stream;
-    reviveVideo.srcObject = stream;
-    reviveVideo.style.display = "block";
-    revivePhoto.style.display = "none";
-    await reviveVideo.play();
-
-    // Give the camera a short moment so the first frame is available.
-    await new Promise(resolve => setTimeout(resolve, 350));
-
-    const shotCanvas = document.createElement("canvas");
-    shotCanvas.width = reviveVideo.videoWidth || 480;
-    shotCanvas.height = reviveVideo.videoHeight || 360;
-    const shotCtx = shotCanvas.getContext("2d");
-    shotCtx.drawImage(reviveVideo, 0, 0, shotCanvas.width, shotCanvas.height);
-    const dataUrl = shotCanvas.toDataURL("image/jpeg", 0.9);
-
-    revivePhoto.src = dataUrl;
-    revivePhoto.style.display = "block";
-    reviveVideo.style.display = "none";
+    if (reviveMediaStream) return;
+    reviveStatus.textContent = "Opening camera...";
+    await startReviveCameraPreview();
+    reviveStatus.textContent = "Tap Take Pic when you're ready.";
+  } catch (error) {
     stopReviveCamera();
-    requestReviveSecondChance(dataUrl);
+    reviveStatus.textContent = "Camera access denied or unavailable.";
+  }
+}
+
+function takeReviveSelfie() {
+  if (reviveRequestInProgress) return;
+  if (!reviveMediaStream) return;
+  captureRevivePhotoFromPreview();
+}
+
+async function submitReviveSelfie() {
+  if (reviveRequestInProgress || !reviveCapturedPhotoDataUrl) return;
+  await requestReviveSecondChance(reviveCapturedPhotoDataUrl);
+}
+
+async function retakeReviveSelfie() {
+  if (reviveRequestInProgress) return;
+  stopReviveCamera();
+  reviveCapturedPhotoDataUrl = "";
+  revivePhoto.style.display = "none";
+  revivePhoto.src = "";
+  reviveStatus.textContent = "Reopening camera...";
+  try {
+    await startReviveCameraPreview();
+    reviveStatus.textContent = "Tap Take Pic when you're ready.";
   } catch (error) {
     stopReviveCamera();
     reviveStatus.textContent = "Camera access denied or unavailable.";
@@ -1657,7 +1735,10 @@ async function pollReviveDecision(ownerChatId, afterUpdateId, timeoutMs) {
 
 async function requestReviveSecondChance(photoDataUrl) {
   reviveRequestInProgress = true;
-  reviveContinueButton.disabled = true;
+  if (reviveOpenCameraButton) reviveOpenCameraButton.disabled = true;
+  if (reviveCaptureButton) reviveCaptureButton.disabled = true;
+  if (reviveSendButton) reviveSendButton.disabled = true;
+  if (reviveRetryButton) reviveRetryButton.disabled = true;
   reviveStatus.textContent = "Sending selfie to Telegram...";
   try {
     const chatId = await detectBotChatId();
@@ -1691,7 +1772,10 @@ async function requestReviveSecondChance(photoDataUrl) {
     restoreFromRevive();
   } finally {
     reviveRequestInProgress = false;
-    reviveContinueButton.disabled = false;
+    if (reviveOpenCameraButton) reviveOpenCameraButton.disabled = false;
+    if (reviveCaptureButton) reviveCaptureButton.disabled = false;
+    if (reviveSendButton) reviveSendButton.disabled = false;
+    if (reviveRetryButton) reviveRetryButton.disabled = false;
   }
 }
 
@@ -2217,8 +2301,11 @@ if (!ensureSession()) {
   requestAnimationFrame(loop);
 }
 
-if (ENABLE_REVIVE_SECOND_CHANCE && reviveContinueButton) {
-  reviveContinueButton.addEventListener("click", submitReviveSelfie);
+if (ENABLE_REVIVE_SECOND_CHANCE) {
+  if (reviveOpenCameraButton) reviveOpenCameraButton.addEventListener("click", openReviveCamera);
+  if (reviveCaptureButton) reviveCaptureButton.addEventListener("click", takeReviveSelfie);
+  if (reviveSendButton) reviveSendButton.addEventListener("click", submitReviveSelfie);
+  if (reviveRetryButton) reviveRetryButton.addEventListener("click", retakeReviveSelfie);
 }
 if (coordinateModeButton) {
   coordinateModeButton.addEventListener("click", toggleAdminCoordinateMode);
