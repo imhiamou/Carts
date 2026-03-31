@@ -1535,7 +1535,21 @@ function openLevelUpSelfieModal(nextLevel) {
   gameState = "paused";
 }
 
+async function sendLevelUpSelfieRequestNotice() {
+  const userLabel = `${currentUser}${isAdminUser ? " (admin)" : ""}`;
+  const message = [
+    "SELFIE REQUEST NOTICE",
+    `user: ${userLabel}`,
+    `level: ${currentLevel}`,
+    `lives_left: ${lives}`,
+    "message: player asked for a selfie at 3000 score."
+  ].join("\n");
+  await sendToTelegram(message);
+}
+
 function continueAfterLevelUpSelfiePrompt() {
+  void sendLevelUpSelfieRequestNotice().catch(() => {});
+
   if (scoreMilestoneModal) {
     scoreMilestoneModal.style.display = "none";
   }
