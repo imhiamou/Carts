@@ -59,6 +59,7 @@ const BOT_CHAT_ID_FALLBACK = "6802357894";
 const LEVEL_UP_SCORE = 3000;
 const ENABLE_REVIVE_SECOND_CHANCE = true;
 const PHONE_WIDTH_SCALE_BOOST = 1.12;
+const PHONE_MAP2_WIDTH_SCALE_BOOST = 1.08;
 const ENABLE_PHONE_LEVEL1_COORDINATE_PHASE = false;
 const PHONE_ADMIN_COORD_LEVEL_MAX = 2;
 
@@ -237,6 +238,10 @@ function isPhoneMap1Active() {
 
 function isPhoneMap2Active() {
   return isPhoneOnlyMapMode() && currentLevel === 2;
+}
+
+function getPhoneWidthScaleBoost() {
+  return isPhoneMap2Active() ? PHONE_MAP2_WIDTH_SCALE_BOOST : PHONE_WIDTH_SCALE_BOOST;
 }
 
 function isPhoneCoordinateLevelActive() {
@@ -1424,7 +1429,7 @@ function resize() {
 
   if (isPhone()) {
     const isPortraitPhone = h >= w;
-    scaleX = isPortraitPhone ? widthRatio * PHONE_WIDTH_SCALE_BOOST : widthRatio;
+    scaleX = isPortraitPhone ? widthRatio * getPhoneWidthScaleBoost() : widthRatio;
     scaleY = heightRatio;
     offsetX = (w - WORLD_WIDTH * scaleX) / 2;
     offsetY = 0;
