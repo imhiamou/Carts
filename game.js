@@ -193,7 +193,7 @@ const WORLD_HEIGHT = 900;
 
 /* ================= SIZE ================= */
 
-const CART_SIZE = 210;
+const CART_SIZE = 240;
 const ARROW_SIZE = 50;
 const TAP_RADIUS = 80;
 const INTERSECTION_RADIUS = 24;
