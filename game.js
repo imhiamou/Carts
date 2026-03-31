@@ -1287,8 +1287,8 @@ const MAP02 = {
 
 const MAP03 = {
   map: "map03.png",
-  mapPhone: "phonemap02.png",
-  mapPhoneFallback: "phonemap2.png",
+  mapPhone: "phonemap2.png",
+  mapPhoneFallback: "phonemap02.png",
   mapPhoneFallback2: "map03_phone.png",
   spawn: { x: 322, y: 879 },
 
