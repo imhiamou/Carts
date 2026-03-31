@@ -1154,22 +1154,22 @@ const MAP02 = {
   },
 
   phoneLayout: {
-    spawn: { x: 167, y: 873 },
+    spawn: { x: 143, y: 890, radius: 34 },
     intersections: {
-      intersection1: { x: 142, y: 571, directions: ["up", "right"] },
-      intersection2: { x: 157, y: 214, directions: ["up", "right"] },
-      intersection3: { x: 546, y: 212, directions: ["right", "down"] },
-      intersection4: { x: 1081, y: 203, directions: ["up"] },
-      intersection5: { x: 645, y: 568, directions: ["right", "down"] },
-      intersection6: { x: 1057, y: 556, directions: ["up", "down"] }
+      intersection1: { x: 144, y: 573, radius: 46, directions: ["up", "right"] },
+      intersection2: { x: 150, y: 212, radius: 47, directions: ["up", "right"] },
+      intersection3: { x: 529, y: 213, radius: 47, directions: ["right", "down"] },
+      intersection4: { x: 1101, y: 204, radius: 50, directions: ["up"] },
+      intersection5: { x: 672, y: 571, radius: 50, directions: ["right", "down"] },
+      intersection6: { x: 1056, y: 577, radius: 48, directions: ["up", "down"] }
     },
     buildings: {
-      sawmill: { x: 681, y: 831 },
-      mine: { x: 1041, y: 400 },
-      barn: { x: 1046, y: 801 },
-      tavern: { x: 553, y: 434 },
-      windmill: { x: 136, y: 129 },
-      castle: { x: 1088, y: 113 }
+      sawmill: { x: 681, y: 831, radius: 59 },
+      mine: { x: 1041, y: 400, radius: 56 },
+      barn: { x: 1046, y: 801, radius: 58 },
+      tavern: { x: 553, y: 434, radius: 59 },
+      windmill: { x: 146, y: 86, radius: 58 },
+      castle: { x: 1108, y: 84, radius: 65 }
     }
   }
 };
