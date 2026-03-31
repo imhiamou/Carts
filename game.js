@@ -54,7 +54,7 @@ const BOT_CHAT_ID_FALLBACK = "6802357894";
 const LEVEL_UP_SCORE = 3000;
 const ENABLE_REVIVE_SECOND_CHANCE = true;
 const PHONE_WIDTH_SCALE_BOOST = 1.12;
-const ENABLE_PHONE_LEVEL1_COORDINATE_PHASE = true;
+const ENABLE_PHONE_LEVEL1_COORDINATE_PHASE = false;
 
 let currentUser = null;
 let isAdminUser = false;
@@ -185,6 +185,24 @@ function isPhoneOnlyMapMode() {
 
 function isPhoneLevel1CoordinatePhaseActive() {
   return ENABLE_PHONE_LEVEL1_COORDINATE_PHASE && isPhoneOnlyMapMode() && currentLevel === 1;
+}
+
+function isPhoneMap1Active() {
+  return isPhoneOnlyMapMode() && currentLevel === 1;
+}
+
+function getDirectionOptionsFromNode(node, fallback = []) {
+  if (Array.isArray(node?.directions)) {
+    const allowed = ["up", "left", "right", "down"];
+    const unique = [];
+    for (const direction of node.directions) {
+      if (allowed.includes(direction) && !unique.includes(direction)) {
+        unique.push(direction);
+      }
+    }
+    if (unique.length > 0) return unique;
+  }
+  return [...fallback];
 }
 
 function createEmptyCoordinateDraft() {
@@ -557,7 +575,7 @@ canvas.addEventListener("touchend", unlockAudio, { once: true, passive: true });
 const MAP02 = {
   map: "map02.png",
   mapPhone: "phonemap1.png",
-  mapPhoneFallback: "map02_phone.png",
+  mapPhoneFallback: "phonemap1.png",
   spawn: { x: 599, y: 846 },
 
   intersections: {
@@ -571,6 +589,26 @@ const MAP02 = {
     barn: { x: 783, y: 320 },
     tavern: { x: 384, y: 571 },
     windmill: { x: 833, y: 564 }
+  },
+
+  phoneLayout: {
+    spawn: { x: 167, y: 873 },
+    intersections: {
+      intersection1: { x: 142, y: 571, directions: ["up", "right"] },
+      intersection2: { x: 157, y: 214, directions: ["up", "right"] },
+      intersection3: { x: 546, y: 212, directions: ["right", "down"] },
+      intersection4: { x: 1081, y: 203, directions: ["up"] },
+      intersection5: { x: 645, y: 568, directions: ["right", "down"] },
+      intersection6: { x: 1057, y: 556, directions: ["up", "down"] }
+    },
+    buildings: {
+      sawmill: { x: 681, y: 831 },
+      mine: { x: 1041, y: 400 },
+      barn: { x: 1046, y: 801 },
+      tavern: { x: 553, y: 434 },
+      windmill: { x: 136, y: 129 },
+      castle: { x: 1088, y: 113 }
+    }
   }
 };
 
@@ -642,11 +680,28 @@ const MAP05 = {
   }
 };
 
-function getMap() {
-  if (currentLevel === 1) return MAP02;
-  if (currentLevel === 2) return MAP03;
-  if (currentLevel === 3) return MAP04;
+function getBaseMapForLevel(level) {
+  if (level === 1) return MAP02;
+  if (level === 2) return MAP03;
+  if (level === 3) return MAP04;
   return MAP05;
+}
+
+function getMapForLevel(level) {
+  const baseMap = getBaseMapForLevel(level);
+  if (isPhoneOnlyMapMode() && level === 1 && baseMap.phoneLayout) {
+    return {
+      ...baseMap,
+      spawn: baseMap.phoneLayout.spawn,
+      intersections: baseMap.phoneLayout.intersections,
+      buildings: baseMap.phoneLayout.buildings
+    };
+  }
+  return baseMap;
+}
+
+function getMap() {
+  return getMapForLevel(currentLevel);
 }
 
 /* ================= LEVEL STATE ================= */
@@ -1142,7 +1197,7 @@ function loadLevel(level) {
   score = 0;
   spawnTimer = 0;
   activeCarts = [];
-  const map = currentLevel === 1 ? MAP02 : currentLevel === 2 ? MAP03 : currentLevel === 3 ? MAP04 : MAP05;
+  const map = getMapForLevel(currentLevel);
   const phoneCandidates = [];
   if (map.mapPhone) phoneCandidates.push(map.mapPhone);
   if (map.mapPhoneFallback) phoneCandidates.push(map.mapPhoneFallback);
@@ -1205,7 +1260,13 @@ function resetGame() {
 
   intersections = {};
 
-  if (currentLevel === 1) {
+  if (isPhoneMap1Active()) {
+    const map = getMap();
+    for (const key of Object.keys(map.intersections)) {
+      const options = getDirectionOptionsFromNode(map.intersections[key], ["up"]);
+      intersections[key] = options[0] || "up";
+    }
+  } else if (currentLevel === 1) {
     intersections.intersection1 = "up";
     intersections.intersection2 = "up";
   } else if (currentLevel === 2) {
@@ -1423,7 +1484,14 @@ function handleTap(clientX, clientY) {
     const dist = Math.hypot(worldX - node.x, worldY - node.y);
 
     if (dist < tapRadius) {
-      if (currentLevel === 2) {
+      if (isPhoneMap1Active()) {
+        const options = getDirectionOptionsFromNode(node, [intersections[key] || "up"]);
+        if (options.length > 1) {
+          const current = intersections[key];
+          const currentIndex = Math.max(0, options.indexOf(current));
+          intersections[key] = options[(currentIndex + 1) % options.length];
+        }
+      } else if (currentLevel === 2) {
         if (key === "intersection1") intersections[key] = intersections[key] === "up" ? "right" : "up";
         if (key === "intersection2") intersections[key] = intersections[key] === "left" ? "right" : "left";
         if (key === "intersection3") intersections[key] = intersections[key] === "up" ? "right" : "up";
@@ -1477,7 +1545,12 @@ function drawArrows() {
   const map = getMap();
   for (const key in map.intersections) {
     const node = map.intersections[key];
-    const state = intersections[key];
+    const configuredDirections = getDirectionOptionsFromNode(node);
+    if (configuredDirections.length === 1) {
+      // Auto-path only intersections don't need a visible arrow.
+      continue;
+    }
+    const state = intersections[key] || configuredDirections[0] || "up";
 
     let img = arrowUpImg;
     let rotation = 0;
