@@ -2242,6 +2242,7 @@ function drawHUD() {
   const levelText = `Level ${currentLevel}`;
   const scoreText = `SCORE ${score}`;
   const livesText = `LIVES LEFT ${lives}`;
+  const centerX = WORLD_WIDTH / 2;
 
   // Level text
   ctx.font = "700 24px Arial";
@@ -2255,29 +2256,35 @@ function drawHUD() {
   ctx.font = "900 28px Arial";
   const scoreWidth = ctx.measureText(scoreText).width;
   const scoreBadgeWidth = scoreWidth + 28;
+  const scoreOuterX = Math.round(centerX - scoreBadgeWidth / 2);
+  const scoreInnerX = scoreOuterX + 4;
+  const scoreTextX = scoreInnerX + 10;
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(14, 56, scoreBadgeWidth, 42);
+  ctx.fillRect(scoreOuterX, 56, scoreBadgeWidth, 42);
   ctx.fillStyle = "#ffd84a";
-  ctx.fillRect(18, 60, scoreBadgeWidth - 8, 34);
+  ctx.fillRect(scoreInnerX, 60, scoreBadgeWidth - 8, 34);
   ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 2;
-  ctx.strokeRect(18, 60, scoreBadgeWidth - 8, 34);
+  ctx.strokeRect(scoreInnerX, 60, scoreBadgeWidth - 8, 34);
   ctx.fillStyle = "#1b1400";
-  ctx.fillText(scoreText, 28, 77);
+  ctx.fillText(scoreText, scoreTextX, 77);
 
   // Highlighted lives-left badge
   ctx.font = "900 26px Arial";
   const livesWidth = ctx.measureText(livesText).width;
   const livesBadgeWidth = livesWidth + 28;
+  const livesOuterX = Math.round(centerX - livesBadgeWidth / 2);
+  const livesInnerX = livesOuterX + 4;
+  const livesTextX = livesInnerX + 10;
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(14, 104, livesBadgeWidth, 42);
+  ctx.fillRect(livesOuterX, 104, livesBadgeWidth, 42);
   ctx.fillStyle = lives <= 1 ? "#ff5a5a" : "#67f596";
-  ctx.fillRect(18, 108, livesBadgeWidth - 8, 34);
+  ctx.fillRect(livesInnerX, 108, livesBadgeWidth - 8, 34);
   ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 2;
-  ctx.strokeRect(18, 108, livesBadgeWidth - 8, 34);
+  ctx.strokeRect(livesInnerX, 108, livesBadgeWidth - 8, 34);
   ctx.fillStyle = "#0b140d";
-  ctx.fillText(livesText, 28, 125);
+  ctx.fillText(livesText, livesTextX, 125);
 }
 
 /* ================= LOOP ================= */
