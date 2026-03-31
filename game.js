@@ -23,6 +23,7 @@ const coordDirectionWrap = document.getElementById("coordDirectionWrap");
 const coordClearButton = document.getElementById("coordClearButton");
 const coordLinkFileButton = document.getElementById("coordLinkFileButton");
 const coordDownloadButton = document.getElementById("coordDownloadButton");
+const coordAddIntersectionButton = document.getElementById("coordAddIntersectionButton");
 const coordPanelToggleButton = document.getElementById("coordPanelToggleButton");
 const coordOutput = document.getElementById("coordOutput");
 const coordStatus = document.getElementById("coordStatus");
@@ -444,6 +445,7 @@ function switchCoordinateDraftMapForCurrentLevel(options = {}) {
     if (!coordinateDraftData || typeof coordinateDraftData !== "object") {
       coordinateDraftData = createEmptyCoordinateDraft();
     }
+    ensureDynamicIntersectionTargets();
     updateCoordinateOutput();
     return;
   }
@@ -453,6 +455,7 @@ function switchCoordinateDraftMapForCurrentLevel(options = {}) {
     coordinateDraftMapId = mapId;
     coordinateDraftData = createEmptyCoordinateDraft();
   }
+  ensureDynamicIntersectionTargets();
   updateCoordinateOutput();
 
   if (showStatus && coordStatus) {
@@ -481,11 +484,60 @@ const COORD_BUILDING_OPTIONS = [
   { value: "castle", label: "Castle" }
 ];
 
+function getIntersectionNumberFromName(name) {
+  const match = /^intersection(\d+)$/i.exec(String(name || ""));
+  if (!match) return null;
+  const numeric = Number(match[1]);
+  return Number.isInteger(numeric) ? numeric : null;
+}
+
+function getSortedIntersectionEntries() {
+  const names = new Set([
+    ...COORD_INTERSECTION_OPTIONS.map(option => option.value),
+    ...Object.keys(coordinateDraftData.intersections || {})
+  ]);
+
+  const entries = [];
+  for (const name of names) {
+    const number = getIntersectionNumberFromName(name);
+    if (!number || number <= 0) continue;
+    entries.push({ value: `intersection${number}`, number });
+  }
+  entries.sort((a, b) => a.number - b.number);
+  return entries;
+}
+
+function createNextIntersectionName() {
+  const used = getSortedIntersectionEntries().map(entry => entry.number);
+  let next = 1;
+  while (used.includes(next)) next += 1;
+  return `intersection${next}`;
+}
+
+function ensureDynamicIntersectionTargets() {
+  const existing = new Set(COORD_INTERSECTION_OPTIONS.map(option => option.value));
+  for (const entry of getSortedIntersectionEntries()) {
+    if (!existing.has(entry.value)) {
+      COORD_INTERSECTION_OPTIONS.push({
+        value: entry.value,
+        label: `Intersection ${entry.number}`
+      });
+      existing.add(entry.value);
+    }
+  }
+  COORD_INTERSECTION_OPTIONS.sort((a, b) => {
+    const numA = getIntersectionNumberFromName(a.value) || 99999;
+    const numB = getIntersectionNumberFromName(b.value) || 99999;
+    return numA - numB;
+  });
+}
+
 function getCoordinateEntityOptions(entityType) {
   if (entityType === "spawn") {
     return [{ value: "spawn", label: "Spawn Point" }];
   }
   if (entityType === "intersection") {
+    ensureDynamicIntersectionTargets();
     return COORD_INTERSECTION_OPTIONS;
   }
   return COORD_BUILDING_OPTIONS;
@@ -529,6 +581,32 @@ function rebuildCoordinateEntityDropdown() {
   coordTargetSelect.value = nextTarget;
   coordEditState.selectedType = currentType;
   coordEditState.selectedName = nextTarget;
+  if (coordAddIntersectionButton) {
+    coordAddIntersectionButton.style.display = currentType === "intersection" ? "inline-block" : "none";
+  }
+}
+
+function addNewIntersectionTarget() {
+  const nextName = createNextIntersectionName();
+  const nextNumber = getIntersectionNumberFromName(nextName) || 1;
+  coordinateDraftData.intersections[nextName] = {
+    x: 0,
+    y: 0,
+    radius: getDefaultRadiusForType("intersection"),
+    directions: ["up"]
+  };
+  ensureDynamicIntersectionTargets();
+  if (coordTypeSelect) {
+    coordTypeSelect.value = "intersection";
+  }
+  rebuildCoordinateEntityDropdown();
+  if (coordTargetSelect) {
+    coordTargetSelect.value = nextName;
+  }
+  selectCoordinateEntity("intersection", nextName);
+  if (coordStatus) {
+    coordStatus.textContent = `Created ${getCoordinateEntityLabel("intersection", nextName)}. Tap map in Add mode to place it.`;
+  }
 }
 
 function syncCoordinateDirectionVisibility() {
@@ -563,6 +641,10 @@ function syncDirectionCheckboxesFromSelection() {
 
 function getCoordinateEntityLabel(entityType, entityName) {
   if (entityType === "spawn") return "Spawn";
+  if (entityType === "intersection") {
+    const number = getIntersectionNumberFromName(entityName);
+    if (number) return `Intersection ${number}`;
+  }
   const options = getCoordinateEntityOptions(entityType);
   return options.find(option => option.value === entityName)?.label || entityName;
 }
@@ -1046,6 +1128,10 @@ function setupCoordinateEditor() {
 
   if (coordInteractionMode) {
     coordInteractionMode.addEventListener("change", updateCoordinateEditorHint);
+  }
+
+  if (coordAddIntersectionButton) {
+    coordAddIntersectionButton.addEventListener("click", addNewIntersectionTarget);
   }
 
   if (coordClearButton) {
