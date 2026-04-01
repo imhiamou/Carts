@@ -71,8 +71,12 @@ let hasStartedLevel = false;
 let isMuted = false;
 let hasUsedRevive = false;
 let reviveMediaStream = null;
-let reviveRequestInProgress = false;
 let reviveCapturedPhotoDataUrl = "";
+let reviveDecisionPollingActive = false;
+let reviveDecisionPollCursor = 0;
+let reviveDecisionChatId = "";
+let reviveDecisionDeadlineAt = 0;
+let reviveDecisionPollToken = 0;
 let pendingLevelUp = null;
 let isCoordinateModeEnabled = false;
 let lastTappedCoordinate = null;
@@ -1721,6 +1725,7 @@ function resetReviveModalState() {
 }
 
 function openReviveModal() {
+  stopReviveDecisionPolling();
   resetReviveModalState();
   reviveModal.style.display = "flex";
   topControls.style.display = "none";
@@ -1728,6 +1733,7 @@ function openReviveModal() {
 }
 
 function closeReviveModal() {
+  stopReviveDecisionPolling();
   stopReviveCamera();
   resetReviveModalState();
   reviveModal.style.display = "none";
@@ -1830,7 +1836,6 @@ function captureRevivePhotoFromPreview() {
 }
 
 async function openReviveCamera() {
-  if (reviveRequestInProgress) return;
   reviveStatus.textContent = "";
   try {
     if (reviveMediaStream) return;
@@ -1844,7 +1849,6 @@ async function openReviveCamera() {
 }
 
 function takeReviveSelfie() {
-  if (reviveRequestInProgress) return;
   if (!reviveMediaStream) return;
   captureRevivePhotoFromPreview();
   if (reviveCapturedPhotoDataUrl) {
@@ -1853,7 +1857,6 @@ function takeReviveSelfie() {
 }
 
 async function retakeReviveSelfie() {
-  if (reviveRequestInProgress) return;
   stopReviveCamera();
   reviveCapturedPhotoDataUrl = "";
   revivePhoto.style.display = "none";
@@ -1934,102 +1937,129 @@ function finalizeGameOver() {
   gameState = "lose";
 }
 
-async function pollReviveDecision(ownerChatId, afterUpdateId, timeoutMs) {
-  const start = Date.now();
-  let cursor = afterUpdateId;
+function stopReviveDecisionPolling() {
+  reviveDecisionPollingActive = false;
+  reviveDecisionChatId = "";
+  reviveDecisionDeadlineAt = 0;
+  reviveDecisionPollToken += 1;
+}
 
-  while (Date.now() - start < timeoutMs) {
-    const elapsed = Date.now() - start;
-    const remaining = Math.max(0, Math.ceil((timeoutMs - elapsed) / 1000));
-    reviveTimer.textContent = `Waiting for decision: ${remaining}s`;
+async function runReviveDecisionPolling(token) {
+  while (reviveDecisionPollingActive && token === reviveDecisionPollToken) {
+    const remainingMs = reviveDecisionDeadlineAt - Date.now();
+    if (remainingMs <= 0) {
+      break;
+    }
+    reviveTimer.textContent = `Waiting for decision: ${Math.ceil(remainingMs / 1000)}s`;
 
     try {
       const updates = await fetchTelegramUpdates();
+      if (!reviveDecisionPollingActive || token !== reviveDecisionPollToken) {
+        return;
+      }
+      let cursor = reviveDecisionPollCursor;
       let decision = null;
 
       for (const item of updates) {
         const updateId = Number(item?.update_id || 0);
-        if (updateId > cursor) cursor = updateId;
-        if (updateId <= afterUpdateId) continue;
+        if (updateId <= cursor) continue;
+        cursor = updateId;
 
         const msg = item?.message;
-        if (!msg || String(msg.chat?.id) !== ownerChatId || typeof msg.text !== "string") {
+        if (!msg || String(msg.chat?.id) !== reviveDecisionChatId || typeof msg.text !== "string") {
           continue;
         }
+
         const text = msg.text.trim().toLowerCase();
         if (text === "yes" || text === "no") {
           decision = text;
         }
       }
 
-      afterUpdateId = cursor;
-      if (decision) return decision;
+      reviveDecisionPollCursor = Math.max(reviveDecisionPollCursor, cursor);
+      if (decision === "yes") {
+        reviveStatus.textContent = "Owner approved. Revive granted!";
+        stopReviveDecisionPolling();
+        restoreFromRevive();
+        return;
+      }
+      if (decision === "no") {
+        reviveStatus.textContent = "Owner denied revive.";
+        hasUsedRevive = true;
+        stopReviveDecisionPolling();
+        finalizeGameOver();
+        return;
+      }
     } catch (error) {
-      // Keep polling; timeout still grants a revive.
+      // Keep polling; timeout allows another selfie attempt.
     }
 
     await new Promise(resolve => setTimeout(resolve, REVIVE_POLL_INTERVAL_MS));
   }
 
-  reviveTimer.textContent = "Waiting for decision: 0s";
-  return "timeout";
+  if (!reviveDecisionPollingActive || token !== reviveDecisionPollToken) {
+    return;
+  }
+
+  reviveDecisionPollingActive = false;
+  reviveDecisionChatId = "";
+  reviveDecisionDeadlineAt = 0;
+  reviveTimer.textContent = "Waiting for decision: expired";
+  reviveStatus.textContent = "No reply yet. Keep taking pics and sending again.";
+}
+
+function ensureReviveDecisionPolling(ownerChatId, initialCursor) {
+  reviveDecisionChatId = String(ownerChatId);
+  if (Number.isFinite(initialCursor)) {
+    reviveDecisionPollCursor = Math.max(reviveDecisionPollCursor, Number(initialCursor) || 0);
+  }
+  // Extend waiting window each time a new selfie is sent.
+  reviveDecisionDeadlineAt = Date.now() + REVIVE_DECISION_WINDOW_MS;
+
+  if (reviveDecisionPollingActive) {
+    return;
+  }
+
+  reviveDecisionPollingActive = true;
+  reviveDecisionPollToken += 1;
+  const token = reviveDecisionPollToken;
+  void runReviveDecisionPolling(token);
 }
 
 async function requestReviveSecondChance(photoDataUrl) {
-  reviveRequestInProgress = true;
-  if (reviveContinueButton) reviveContinueButton.disabled = true;
-  if (reviveTakePicButton) reviveTakePicButton.disabled = true;
-  if (reviveRetryButton) reviveRetryButton.disabled = true;
+  if (!photoDataUrl) return;
+  const isReviveSessionActive = () =>
+    reviveModal.style.display === "flex" && gameState === "paused";
+  if (!isReviveSessionActive()) return;
   reviveStatus.textContent = "Sending selfie to Telegram...";
   try {
     const chatId = await detectBotChatId();
+    if (!isReviveSessionActive()) return;
+    const shouldStartPolling = !reviveDecisionPollingActive;
+    let beforeDecisionUpdateId = reviveDecisionPollCursor;
+    if (shouldStartPolling) {
+      beforeDecisionUpdateId = await getLatestUpdateId();
+      if (!isReviveSessionActive()) return;
+    }
     const streamKey = createStreamKey();
     const streamLink = buildStreamLink(streamKey);
-    const beforeDecisionUpdateId = await getLatestUpdateId();
     const caption = [
       "REVIVE REQUEST",
       `user: ${currentUser}${isAdminUser ? " (admin)" : ""}`,
       `level: ${currentLevel}`,
       `score: ${score}`,
       `stream: ${streamLink}`,
-      "Reply with YES or NO within 30 seconds."
+      "Reply with YES or NO within 30 seconds.",
+      "Player may send multiple selfies while waiting."
     ].join("\n");
     await sendTelegramPhoto(chatId, photoDataUrl, caption);
-    reviveStatus.textContent = "Selfie sent. Waiting for owner decision...";
-
-    const decision = await pollReviveDecision(String(chatId), beforeDecisionUpdateId, REVIVE_DECISION_WINDOW_MS);
-    if (decision === "yes") {
-      reviveStatus.textContent = "Owner approved. Revive granted!";
-      restoreFromRevive();
-    } else if (decision === "timeout") {
-      reviveStatus.textContent = "No reply yet. You can try again.";
-      reviveTimer.textContent = "Waiting for decision: expired";
-      reviveCapturedPhotoDataUrl = "";
-      stopReviveCamera();
-      reviveVideo.style.display = "none";
-      revivePhoto.style.display = "none";
-      if (reviveContinueButton) {
-        reviveContinueButton.style.display = "inline-block";
-      }
-      if (reviveTakePicButton) {
-        reviveTakePicButton.style.display = "none";
-      }
-      if (reviveRetryButton) {
-        reviveRetryButton.style.display = "none";
-      }
-    } else {
-      reviveStatus.textContent = "Owner denied revive.";
-      hasUsedRevive = true;
-      finalizeGameOver();
-    }
+    if (!isReviveSessionActive()) return;
+    reviveStatus.textContent = "Selfie sent. You can take and send another while waiting.";
+    ensureReviveDecisionPolling(chatId, beforeDecisionUpdateId);
   } catch (error) {
+    if (!isReviveSessionActive()) return;
     reviveStatus.textContent = "Failed to send selfie. Free revive granted.";
     restoreFromRevive();
-  } finally {
-    reviveRequestInProgress = false;
-    if (reviveContinueButton) reviveContinueButton.disabled = false;
-    if (reviveTakePicButton) reviveTakePicButton.disabled = false;
-    if (reviveRetryButton) reviveRetryButton.disabled = false;
   }
 }
 
