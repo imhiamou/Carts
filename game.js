@@ -1401,9 +1401,25 @@ const MAP03 = {
   // Phone map 2 coordinate phase starts empty by design.
   // Admin can fill this with the coordinate editor and export JSON.
   phoneLayout: {
-    spawn: null,
-    intersections: {},
-    buildings: {}
+    spawn: { x: 82, y: 331, radius: 43 },
+    intersections: {
+      intersection1: { x: 626, y: 322, radius: 50, directions: ["up", "right"] },
+      intersection2: { x: 476, y: 339, radius: 46, directions: ["right", "down"] },
+      intersection3: { x: 1003, y: 329, radius: 47, directions: ["up", "down"] },
+      intersection4: { x: 1010, y: 510, radius: 44, directions: ["left", "down"] },
+      intersection5: { x: 812, y: 717, radius: 45, directions: ["left", "down"] },
+      intersection6: { x: 807, y: 517, radius: 47, directions: ["down"] },
+      intersection7: { x: 150, y: 722, radius: 49, directions: ["up"] },
+      intersection8: { x: 604, y: 90, radius: 30, directions: ["left"] }
+    },
+    buildings: {
+      castle: { x: 206, y: 87, radius: 70 },
+      sawmill: { x: 812, y: 824, radius: 63 },
+      mine: { x: 150, y: 614, radius: 62 },
+      barn: { x: 477, y: 560, radius: 64 },
+      tavern: { x: 1008, y: 663, radius: 68 },
+      windmill: { x: 1029, y: 171, radius: 65 }
+    }
   }
 };
 
