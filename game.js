@@ -1630,12 +1630,12 @@ function hidePreStartOverlay() {
 function selectLevel(level) {
   if (!canAccessLevel(level)) return;
   pendingStartLevel = level;
+  isAwaitingLevelStart = true;
   hasStartedLevel = true;
   ui.style.display = "none";
   levelMenu.style.display = "none";
   topControls.style.display = "flex";
   loadLevel(level);
-  isAwaitingLevelStart = true;
   gameState = "paused";
   showPreStartOverlay();
   if (startGameButton) {
@@ -2284,7 +2284,7 @@ function resetGame() {
   lives = 3;
   spawnTimer = 0;
   activeCarts = [];
-  gameState = levelMenu.style.display === "none" ? "playing" : "paused";
+  gameState = levelMenu.style.display === "none" && !isAwaitingLevelStart ? "playing" : "paused";
   if (isPhoneLevel1CoordinatePhaseActive()) {
     gameState = "paused";
   }
