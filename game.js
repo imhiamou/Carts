@@ -241,6 +241,10 @@ function isPhoneMap2Active() {
   return isPhoneOnlyMapMode() && currentLevel === 2;
 }
 
+function isPhonePlayableMapActive() {
+  return isPhoneMap1Active() || isPhoneMap2Active();
+}
+
 function getPhoneWidthScaleBoost() {
   return isPhoneMap2Active() ? PHONE_MAP2_WIDTH_SCALE_BOOST : PHONE_WIDTH_SCALE_BOOST;
 }
