@@ -2524,49 +2524,58 @@ function drawHUD() {
   const levelText = `Level ${currentLevel}`;
   const scoreText = `SCORE ${score}`;
   const livesText = `LIVES LEFT ${lives}`;
-  const centerX = WORLD_WIDTH / 2;
+  const badges = [
+    { text: levelText, fill: "#6fc3ff", textColor: "#001a2f", font: "800 24px Arial" },
+    { text: scoreText, fill: "#ffd84a", textColor: "#1b1400", font: "900 26px Arial" },
+    { text: livesText, fill: lives <= 1 ? "#ff5a5a" : "#67f596", textColor: "#0b140d", font: "900 24px Arial" }
+  ];
 
-  // Level text
-  ctx.font = "700 24px Arial";
+  const topPad = 10;
+  const badgeHeight = 34;
+  const badgeOuterPad = 4;
+  const badgeGap = 12;
+  const textPadX = 14;
+
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
-  ctx.fillRect(14, 14, 170, 34);
-  ctx.fillStyle = "#f4f7ff";
-  ctx.fillText(levelText, 22, 31);
 
-  // Highlighted score badge
-  ctx.font = "900 28px Arial";
-  const scoreWidth = ctx.measureText(scoreText).width;
-  const scoreBadgeWidth = scoreWidth + 28;
-  const scoreOuterX = Math.round(centerX - scoreBadgeWidth / 2);
-  const scoreInnerX = scoreOuterX + 4;
-  const scoreTextX = scoreInnerX + 10;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(scoreOuterX, 56, scoreBadgeWidth, 42);
-  ctx.fillStyle = "#ffd84a";
-  ctx.fillRect(scoreInnerX, 60, scoreBadgeWidth - 8, 34);
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(scoreInnerX, 60, scoreBadgeWidth - 8, 34);
-  ctx.fillStyle = "#1b1400";
-  ctx.fillText(scoreText, scoreTextX, 77);
+  const badgeWidths = [];
+  let totalWidth = 0;
+  for (const badge of badges) {
+    ctx.font = badge.font;
+    const width = Math.ceil(ctx.measureText(badge.text).width) + textPadX * 2 + badgeOuterPad * 2;
+    badgeWidths.push(width);
+    totalWidth += width;
+  }
+  totalWidth += badgeGap * (badges.length - 1);
 
-  // Highlighted lives-left badge
-  ctx.font = "900 26px Arial";
-  const livesWidth = ctx.measureText(livesText).width;
-  const livesBadgeWidth = livesWidth + 28;
-  const livesOuterX = Math.round(centerX - livesBadgeWidth / 2);
-  const livesInnerX = livesOuterX + 4;
-  const livesTextX = livesInnerX + 10;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(livesOuterX, 104, livesBadgeWidth, 42);
-  ctx.fillStyle = lives <= 1 ? "#ff5a5a" : "#67f596";
-  ctx.fillRect(livesInnerX, 108, livesBadgeWidth - 8, 34);
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(livesInnerX, 108, livesBadgeWidth - 8, 34);
-  ctx.fillStyle = "#0b140d";
-  ctx.fillText(livesText, livesTextX, 125);
+  const stripHeight = topPad * 2 + badgeHeight + badgeOuterPad * 2;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
+  ctx.fillRect(0, 0, WORLD_WIDTH, stripHeight + 4);
+
+  let x = Math.round((WORLD_WIDTH - totalWidth) / 2);
+  const outerY = topPad;
+  const innerY = outerY + badgeOuterPad;
+  const innerHeight = badgeHeight;
+
+  for (let i = 0; i < badges.length; i++) {
+    const badge = badges[i];
+    const width = badgeWidths[i];
+    const innerX = x + badgeOuterPad;
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.fillRect(x, outerY, width, innerHeight + badgeOuterPad * 2);
+    ctx.fillStyle = badge.fill;
+    ctx.fillRect(innerX, innerY, width - badgeOuterPad * 2, innerHeight);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(innerX, innerY, width - badgeOuterPad * 2, innerHeight);
+
+    ctx.font = badge.font;
+    ctx.fillStyle = badge.textColor;
+    ctx.fillText(badge.text, innerX + textPadX, innerY + innerHeight / 2 + 1);
+
+    x += width + badgeGap;
+  }
 }
 
 /* ================= LOOP ================= */
