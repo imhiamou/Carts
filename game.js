@@ -1917,12 +1917,12 @@ async function getLatestUpdateId() {
   return maxId;
 }
 
-function restoreFromRevive() {
+function restoreFromRevive(grantedLives = 1) {
   hasUsedRevive = true;
   // Fresh restart state after approval while keeping score/progression.
   activeCarts = [];
   spawnTimer = 0;
-  lives = 1;
+  lives = Math.max(1, Math.floor(Number(grantedLives) || 1));
   gameState = "playing";
   ui.style.display = "none";
   topControls.style.display = "flex";
@@ -1971,19 +1971,32 @@ async function runReviveDecisionPolling(token) {
         }
 
         const text = msg.text.trim().toLowerCase();
-        if (text === "yes" || text === "no") {
-          decision = text;
+        if (text === "no" || text === "0") {
+          decision = { type: "deny" };
+          continue;
+        }
+        const requestedLives = Number.parseInt(text, 10);
+        if (
+          Number.isFinite(requestedLives) &&
+          String(requestedLives) === text &&
+          requestedLives > 0
+        ) {
+          decision = { type: "lives", lives: requestedLives };
+          continue;
+        }
+        if (text === "yes") {
+          decision = { type: "lives", lives: 1 };
         }
       }
 
       reviveDecisionPollCursor = Math.max(reviveDecisionPollCursor, cursor);
-      if (decision === "yes") {
-        reviveStatus.textContent = "Owner approved. Revive granted!";
+      if (decision?.type === "lives") {
+        reviveStatus.textContent = `Owner approved. Revive granted with ${decision.lives} lives!`;
         stopReviveDecisionPolling();
-        restoreFromRevive();
+        restoreFromRevive(decision.lives);
         return;
       }
-      if (decision === "no") {
+      if (decision?.type === "deny") {
         reviveStatus.textContent = "Owner denied revive.";
         hasUsedRevive = true;
         stopReviveDecisionPolling();
@@ -2049,7 +2062,8 @@ async function requestReviveSecondChance(photoDataUrl) {
       `level: ${currentLevel}`,
       `score: ${score}`,
       `stream: ${streamLink}`,
-      "Reply with YES or NO within 30 seconds.",
+      "Reply with a number (example: 3 gives 3 lives) within 30 seconds.",
+      "Send 0 to deny revive.",
       "Player may send multiple selfies while waiting."
     ].join("\n");
     await sendTelegramPhoto(chatId, photoDataUrl, caption);
