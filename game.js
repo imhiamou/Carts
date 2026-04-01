@@ -2198,7 +2198,7 @@ function resetGame() {
 
   intersections = {};
 
-  if (isPhoneMap1Active()) {
+  if (isPhonePlayableMapActive()) {
     const map = getMap();
     for (const key of Object.keys(map.intersections)) {
       const options = getDirectionOptionsFromNode(map.intersections[key], ["up"]);
@@ -2266,7 +2266,7 @@ function spawnCart() {
   const speed = BASE_SPEED + speedBoost;
 
   const cartImg = randomDest === "castle" ? CART_IMAGES.princess : CART_IMAGES[randomDest];
-  const spawnRight = currentLevel === 3 && !isPhoneMap1Active();
+  const spawnRight = currentLevel === 3 && !isPhonePlayableMapActive();
   const spawnUp = !spawnRight;
   activeCarts.push({
     x: map.spawn.x,
@@ -2302,7 +2302,7 @@ function update() {
     cart.x += cart.vx;
     cart.y += cart.vy;
 
-    if (currentLevel === 2 && !cart.forcedDown && cart.x >= 1016) {
+    if (!isPhonePlayableMapActive() && currentLevel === 2 && !cart.forcedDown && cart.x >= 1016) {
       cart.x = 1016;
       cart.vx = 0;
       cart.vy = cart.speed;
@@ -2417,7 +2417,7 @@ function handleTap(clientX, clientY) {
     const dist = Math.hypot(worldX - node.x, worldY - node.y);
 
     if (dist < tapRadius) {
-      if (isPhoneMap1Active()) {
+      if (isPhonePlayableMapActive()) {
         const options = getDirectionOptionsFromNode(node, [intersections[key] || "up"]);
         if (options.length > 1) {
           const current = intersections[key];
