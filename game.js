@@ -206,6 +206,7 @@ const WORLD_HEIGHT = 900;
 /* ================= SIZE ================= */
 
 const CART_SIZE = 240;
+const PHONE_MAP2_CART_SIZE = 220;
 const ARROW_SIZE = 50;
 const TAP_RADIUS = 80;
 const INTERSECTION_RADIUS = 24;
@@ -247,6 +248,10 @@ function isPhonePlayableMapActive() {
 
 function getPhoneWidthScaleBoost() {
   return isPhoneMap2Active() ? PHONE_MAP2_WIDTH_SCALE_BOOST : PHONE_WIDTH_SCALE_BOOST;
+}
+
+function getCurrentCartSize() {
+  return isPhoneMap2Active() ? PHONE_MAP2_CART_SIZE : CART_SIZE;
 }
 
 function isPhoneCoordinateLevelActive() {
@@ -2354,7 +2359,7 @@ function update() {
 
 function checkBuildings(cart) {
   const map = getMap();
-  const hitRadius = Math.max(20, Math.round(CART_SIZE * 0.18));
+  const hitRadius = Math.max(20, Math.round(getCurrentCartSize() * 0.18));
 
   for (const key in map.buildings) {
     const node = map.buildings[key];
@@ -2499,6 +2504,7 @@ function drawArrows() {
 }
 
 function drawCarts() {
+  const cartSize = getCurrentCartSize();
   for (const cart of activeCarts) {
     let rotation = 0;
     if (cart.vy > 0) rotation = 0;
@@ -2509,7 +2515,7 @@ function drawCarts() {
     ctx.save();
     ctx.translate(cart.x, cart.y);
     ctx.rotate(rotation);
-    ctx.drawImage(cart.img, -CART_SIZE / 2, -CART_SIZE / 2, CART_SIZE, CART_SIZE);
+    ctx.drawImage(cart.img, -cartSize / 2, -cartSize / 2, cartSize, cartSize);
     ctx.restore();
   }
 }
