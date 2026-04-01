@@ -2266,13 +2266,12 @@ function spawnCart() {
   const speed = BASE_SPEED + speedBoost;
 
   const cartImg = randomDest === "castle" ? CART_IMAGES.princess : CART_IMAGES[randomDest];
-  const spawnRight = currentLevel === 3 && !isPhonePlayableMapActive();
-  const spawnUp = !spawnRight;
   activeCarts.push({
     x: map.spawn.x,
     y: map.spawn.y,
-    vx: spawnRight ? speed : 0,
-    vy: spawnUp ? -speed : 0,
+    // Requested default: carts always start by moving to the right.
+    vx: speed,
+    vy: 0,
     speed: speed,
     destination: randomDest,
     img: cartImg,
