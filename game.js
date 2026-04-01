@@ -10,6 +10,7 @@ const topControls = document.getElementById("topControls");
 const menuTitle = document.getElementById("menuTitle");
 const menuSubtitle = document.getElementById("menuSubtitle");
 const levelButtons = document.getElementById("levelButtons");
+const startGameButton = document.getElementById("startGameButton");
 const continueButton = document.getElementById("continueButton");
 const muteButton = document.getElementById("muteButton");
 const coordinateModeButton = document.getElementById("coordinateModeButton");
@@ -68,6 +69,7 @@ let currentUser = null;
 let isAdminUser = false;
 let unlockedLevel = 1;
 let hasStartedLevel = false;
+let pendingStartLevel = null;
 let isMuted = false;
 let hasUsedRevive = false;
 let reviveMediaStream = null;
@@ -1593,9 +1595,11 @@ function renderLevelMenu() {
   for (let level = 1; level <= LEVEL_COUNT; level++) {
     const unlocked = canAccessLevel(level);
     const button = document.createElement("button");
+    const selectedLevel = pendingStartLevel || currentLevel;
     const isCurrent = hasStartedLevel && level === currentLevel;
+    const isSelected = !hasStartedLevel && level === selectedLevel;
     button.textContent = unlocked
-      ? `Level ${level}${isCurrent ? " (Current)" : ""}`
+      ? `Level ${level}${isCurrent ? " (Current)" : isSelected ? " (Selected)" : ""}`
       : `Level ${level} (Locked)`;
     button.disabled = !unlocked;
     button.addEventListener("click", () => selectLevel(level));
@@ -1608,16 +1612,29 @@ function renderLevelMenu() {
       ? "Coordinate Mode: On"
       : "Coordinate Mode: Off";
   }
+  if (startGameButton) {
+    startGameButton.style.display = gameState !== "lose" ? "inline-block" : "none";
+    const selectedLevel = pendingStartLevel || currentLevel;
+    startGameButton.textContent = `Start Game (Level ${selectedLevel})`;
+  }
   updateCoordinateUIVisibility();
 }
 
 function selectLevel(level) {
   if (!canAccessLevel(level)) return;
+  pendingStartLevel = level;
+  renderLevelMenu();
+}
+
+function startGameFromMenu() {
+  const selectedLevel = pendingStartLevel || currentLevel || 1;
+  if (!canAccessLevel(selectedLevel)) return;
   hasStartedLevel = true;
   ui.style.display = "none";
   levelMenu.style.display = "none";
   topControls.style.display = "flex";
-  loadLevel(level);
+  loadLevel(selectedLevel);
+  pendingStartLevel = selectedLevel;
 }
 
 function openLevelMenu() {
@@ -2669,6 +2686,9 @@ if (ENABLE_REVIVE_SECOND_CHANCE) {
 }
 if (scoreMilestoneContinueButton) {
   scoreMilestoneContinueButton.addEventListener("click", continueAfterLevelUpSelfiePrompt);
+}
+if (startGameButton) {
+  startGameButton.addEventListener("click", startGameFromMenu);
 }
 if (coordinateModeButton) {
   coordinateModeButton.addEventListener("click", toggleAdminCoordinateMode);
