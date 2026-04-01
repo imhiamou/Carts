@@ -63,6 +63,18 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   padding:8px 14px;
   min-height:unset;
 }
+#preStartOverlay {
+  position:absolute;
+  left:50%;
+  bottom:22px;
+  transform:translateX(-50%);
+  display:none;
+  z-index:29;
+}
+#preStartOverlay button {
+  font-size:20px;
+  padding:12px 22px;
+}
 #coordReadout {
   position:absolute;
   top:16px;
@@ -241,13 +253,16 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
     <h2 id="menuTitle">Select Level</h2>
     <p id="menuSubtitle"></p>
     <div id="levelButtons"></div>
-    <button id="startGameButton" type="button" style="margin-bottom:10px;">Start Game</button>
     <button id="continueButton" onclick="closeLevelMenu()" style="display:none; margin-bottom:10px;">Continue</button>
     <button id="muteButton" onclick="toggleMute()" style="margin-bottom:10px;">Mute: Off</button>
     <button id="coordinateModeButton" style="display:none; margin-bottom:10px;">Coordinate Mode: Off</button>
     <button onclick="openBugReport()" style="margin-bottom:10px;">Report a Bug</button>
     <button onclick="logout()">Logout</button>
   </div>
+</div>
+
+<div id="preStartOverlay">
+  <button id="startGameButton" type="button">Start Game</button>
 </div>
 
 <div id="bugReportModal" class="overlay">

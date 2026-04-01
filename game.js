@@ -10,6 +10,7 @@ const topControls = document.getElementById("topControls");
 const menuTitle = document.getElementById("menuTitle");
 const menuSubtitle = document.getElementById("menuSubtitle");
 const levelButtons = document.getElementById("levelButtons");
+const preStartOverlay = document.getElementById("preStartOverlay");
 const startGameButton = document.getElementById("startGameButton");
 const continueButton = document.getElementById("continueButton");
 const muteButton = document.getElementById("muteButton");
@@ -70,6 +71,7 @@ let isAdminUser = false;
 let unlockedLevel = 1;
 let hasStartedLevel = false;
 let pendingStartLevel = null;
+let isAwaitingLevelStart = false;
 let isMuted = false;
 let hasUsedRevive = false;
 let reviveMediaStream = null;
@@ -1612,35 +1614,52 @@ function renderLevelMenu() {
       ? "Coordinate Mode: On"
       : "Coordinate Mode: Off";
   }
-  if (startGameButton) {
-    startGameButton.style.display = gameState !== "lose" ? "inline-block" : "none";
-    const selectedLevel = pendingStartLevel || currentLevel;
-    startGameButton.textContent = `Start Game (Level ${selectedLevel})`;
-  }
   updateCoordinateUIVisibility();
+}
+
+function showPreStartOverlay() {
+  if (!preStartOverlay) return;
+  preStartOverlay.style.display = "block";
+}
+
+function hidePreStartOverlay() {
+  if (!preStartOverlay) return;
+  preStartOverlay.style.display = "none";
 }
 
 function selectLevel(level) {
   if (!canAccessLevel(level)) return;
   pendingStartLevel = level;
-  renderLevelMenu();
-}
-
-function startGameFromMenu() {
-  const selectedLevel = pendingStartLevel || currentLevel || 1;
-  if (!canAccessLevel(selectedLevel)) return;
   hasStartedLevel = true;
   ui.style.display = "none";
   levelMenu.style.display = "none";
   topControls.style.display = "flex";
-  loadLevel(selectedLevel);
-  pendingStartLevel = selectedLevel;
+  loadLevel(level);
+  isAwaitingLevelStart = true;
+  gameState = "paused";
+  showPreStartOverlay();
+  if (startGameButton) {
+    startGameButton.textContent = "Start Game";
+  }
+}
+
+function startGameFromMenu() {
+  if (levelMenu.style.display === "flex") return;
+  if (!isAwaitingLevelStart) return;
+  if (gameState === "lose" || isCoordinateEditorActive() || isPhoneLevel1CoordinatePhaseActive()) {
+    return;
+  }
+  isAwaitingLevelStart = false;
+  hidePreStartOverlay();
+  gameState = "playing";
+  topControls.style.display = "flex";
 }
 
 function openLevelMenu() {
   renderLevelMenu();
   continueButton.style.display = hasStartedLevel && gameState !== "lose" ? "inline-block" : "none";
   levelMenu.style.display = "flex";
+  hidePreStartOverlay();
   topControls.style.display = "none";
   if (gameState === "playing") {
     gameState = "paused";
@@ -1650,7 +1669,17 @@ function openLevelMenu() {
 function closeLevelMenu() {
   levelMenu.style.display = "none";
   topControls.style.display = "flex";
-  if (hasStartedLevel && gameState !== "lose" && !isPhoneLevel1CoordinatePhaseActive() && !isCoordinateEditorActive()) {
+  if (isAwaitingLevelStart && startGameButton) {
+    startGameButton.textContent = "Start Game";
+    showPreStartOverlay();
+  }
+  if (
+    hasStartedLevel &&
+    !isAwaitingLevelStart &&
+    gameState !== "lose" &&
+    !isPhoneLevel1CoordinatePhaseActive() &&
+    !isCoordinateEditorActive()
+  ) {
     gameState = "playing";
   }
 }
@@ -1948,6 +1977,7 @@ function restoreFromRevive(grantedLives = 1) {
 
 function finalizeGameOver() {
   closeReviveModal();
+  hidePreStartOverlay();
   resultText.innerText = "GAME OVER";
   ui.style.display = "block";
   topControls.style.display = "none";
@@ -2653,6 +2683,8 @@ function loseGame() {
 function restartGame() {
   ui.style.display = "none";
   hasUsedRevive = false;
+  isAwaitingLevelStart = false;
+  hidePreStartOverlay();
   topControls.style.display = "flex";
   resetGame();
 }
