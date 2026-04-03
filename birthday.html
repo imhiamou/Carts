@@ -13,21 +13,29 @@
 />
 <style>
 :root {
-  --bg: #050315;
-  --panel: rgba(7, 6, 28, 0.86);
-  --text: #f8edff;
-  --pink: #ff4dc9;
-  --violet: #8f5dff;
-  --cyan: #2de9ff;
-  --gold: #ffd166;
+  --bg: #2d0038;
+  --bg-deep: #150022;
+  --panel: rgba(47, 8, 54, 0.84);
+  --text: #fff0fb;
+  --pink: #ff5ecf;
+  --pink-soft: #ff9fe5;
+  --rose: #ff7ec9;
+  --violet: #b678ff;
+  --cyan: #93efff;
+  --gold: #ffd88b;
 }
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; }
 body {
   font-family: "Nunito", Arial, sans-serif;
-  background: radial-gradient(circle at 20% 20%, #2e115d 0%, var(--bg) 56%);
+  background:
+    radial-gradient(circle at 20% 14%, rgba(255, 94, 207, 0.5), transparent 42%),
+    radial-gradient(circle at 85% 25%, rgba(182, 120, 255, 0.35), transparent 38%),
+    radial-gradient(circle at 50% 100%, rgba(255, 159, 229, 0.3), transparent 38%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
   color: var(--text);
   overflow: hidden;
+  animation: bgShift 8s ease-in-out infinite alternate;
 }
 .birthday-overlay {
   position: fixed;
@@ -38,12 +46,18 @@ body {
 }
 .birthday-glow {
   position: absolute;
-  width: 64vmin;
-  height: 64vmin;
+  width: 76vmin;
+  height: 76vmin;
   border-radius: 50%;
-  filter: blur(42px);
-  background: radial-gradient(circle, rgba(255, 77, 201, 0.28) 0%, rgba(45, 233, 255, 0.12) 48%, transparent 72%);
-  animation: pulse 3.2s ease-in-out infinite;
+  filter: blur(44px);
+  background: radial-gradient(
+    circle,
+    rgba(255, 94, 207, 0.36) 0%,
+    rgba(255, 159, 229, 0.22) 35%,
+    rgba(147, 239, 255, 0.16) 58%,
+    transparent 78%
+  );
+  animation: pulseGlow 3.2s ease-in-out infinite;
 }
 .birthday-stars span,
 .birthday-confetti span {
@@ -54,8 +68,8 @@ body {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 8px #fff;
+  background: #ffe8fa;
+  box-shadow: 0 0 8px #ffe8fa;
   animation: twinkle 2.4s ease-in-out infinite;
 }
 .birthday-stars span:nth-child(1) { top: 8%; left: 12%; animation-delay: .2s; }
@@ -103,36 +117,75 @@ body {
 .birthday-confetti span:nth-child(16) { left: 93%; animation-duration: 6.1s; animation-delay: 1.5s; }
 .birthday-confetti span:nth-child(17) { left: 17%; animation-duration: 5.7s; animation-delay: 2.7s; }
 .birthday-confetti span:nth-child(18) { left: 72%; animation-duration: 5.0s; animation-delay: 2.9s; }
+.birthday-hearts span {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  background: linear-gradient(160deg, #ff98df, #ff5ecf);
+  opacity: 0.82;
+  animation: heartFloat 7s linear infinite;
+}
+.birthday-hearts span::before,
+.birthday-hearts span::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: inherit;
+}
+.birthday-hearts span::before { left: -7px; top: 0; }
+.birthday-hearts span::after { left: 0; top: -7px; }
+.birthday-hearts span:nth-child(1) { left: 7%; top: 75%; animation-delay: .2s; }
+.birthday-hearts span:nth-child(2) { left: 14%; top: 60%; animation-delay: 1.3s; transform: rotate(45deg) scale(.8); }
+.birthday-hearts span:nth-child(3) { left: 26%; top: 80%; animation-delay: 2.7s; }
+.birthday-hearts span:nth-child(4) { left: 34%; top: 64%; animation-delay: 3.5s; transform: rotate(45deg) scale(1.2); }
+.birthday-hearts span:nth-child(5) { left: 46%; top: 78%; animation-delay: 1.7s; }
+.birthday-hearts span:nth-child(6) { left: 56%; top: 68%; animation-delay: 4.1s; transform: rotate(45deg) scale(.9); }
+.birthday-hearts span:nth-child(7) { left: 66%; top: 82%; animation-delay: 2.1s; }
+.birthday-hearts span:nth-child(8) { left: 74%; top: 62%; animation-delay: 3.1s; transform: rotate(45deg) scale(1.15); }
+.birthday-hearts span:nth-child(9) { left: 84%; top: 76%; animation-delay: .8s; }
+.birthday-hearts span:nth-child(10) { left: 91%; top: 66%; animation-delay: 5.2s; transform: rotate(45deg) scale(.85); }
 .birthday-scene {
   position: relative;
   width: min(92vw, 560px);
   background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
+  border: 1px solid rgba(255, 203, 244, 0.36);
+  box-shadow: 0 14px 45px rgba(255, 94, 207, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  border-radius: 24px;
   padding: 24px 20px 20px;
   text-align: center;
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(5px);
   transform: translate(0, 0);
   transition: transform 140ms linear;
+  animation: sceneFloat 4.2s ease-in-out infinite;
 }
 .birthday-kicker {
   margin: 0;
   font-size: 16px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  opacity: .9;
+  opacity: .95;
+  color: #ffd1f1;
 }
 h1 {
   margin: 8px 0 18px;
   font-size: clamp(28px, 5.2vw, 46px);
-  color: #fff;
-  text-shadow: 0 0 14px rgba(255, 77, 201, 0.45);
+  background: linear-gradient(90deg, #ffe4f7 0%, #ff9fe5 40%, #ffd5f3 75%, #ff9fe5 100%);
+  background-size: 180% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 14px rgba(255, 94, 207, 0.42);
+  animation: titleShimmer 3.2s ease-in-out infinite;
 }
 .cake-stage {
   width: 230px;
   height: 200px;
   margin: 0 auto 12px;
   position: relative;
+  animation: cakeBob 2.4s ease-in-out infinite;
 }
 .cake-piece { position: absolute; left: 50%; transform: translateX(-50%); border-radius: 10px; }
 .cake-shadow {
@@ -143,17 +196,18 @@ h1 {
   height: 18px;
   transform: translateX(-50%);
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(43, 5, 40, 0.45);
+  animation: shadowPulse 2.4s ease-in-out infinite;
 }
-.cake-plate { bottom: 28px; width: 176px; height: 16px; background: #e8f6ff; }
-.cake-base { bottom: 42px; width: 150px; height: 44px; background: #c88f4e; }
-.cake-mid { bottom: 80px; width: 130px; height: 36px; background: #d89e5a; }
-.cake-top { bottom: 112px; width: 110px; height: 28px; background: #e7b06f; }
+.cake-plate { bottom: 28px; width: 176px; height: 16px; background: #ffe9f8; }
+.cake-base { bottom: 42px; width: 150px; height: 44px; background: #ff8fc9; }
+.cake-mid { bottom: 80px; width: 130px; height: 36px; background: #ff77bd; }
+.cake-top { bottom: 112px; width: 110px; height: 28px; background: #ff64b6; }
 .cake-icing {
   bottom: 136px;
   width: 116px;
   height: 20px;
-  background: linear-gradient(90deg, #ffe3f8, #fbe6ff);
+  background: linear-gradient(90deg, #fff2fb, #ffd8f2);
 }
 .cake-candle {
   bottom: 153px;
@@ -173,20 +227,28 @@ h1 {
   height: 22px;
   background: radial-gradient(circle at 50% 66%, #ffd166 0%, #ff9f1c 60%, rgba(255, 159, 28, 0) 75%);
   border-radius: 50% 50% 42% 42%;
-  animation: flicker .55s ease-in-out infinite alternate;
+  animation: flicker .42s ease-in-out infinite alternate;
 }
 .birthday-continue-btn {
   border: 0;
-  border-radius: 10px;
+  border-radius: 999px;
   padding: 12px 20px;
   font-size: 18px;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(90deg, var(--violet), var(--pink));
+  background: linear-gradient(90deg, var(--violet), var(--pink), var(--rose));
+  box-shadow: 0 10px 22px rgba(255, 94, 207, 0.35);
   cursor: pointer;
 }
-.birthday-continue-btn:hover { filter: brightness(1.08); }
-@keyframes pulse {
+.birthday-continue-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.birthday-continue-btn:not([hidden]) {
+  animation: btnPop 320ms ease, btnPulse 1.8s ease-in-out infinite;
+}
+@keyframes bgShift {
+  0% { filter: saturate(1); }
+  100% { filter: saturate(1.16); }
+}
+@keyframes pulseGlow {
   0%, 100% { transform: scale(1); opacity: .7; }
   50% { transform: scale(1.08); opacity: 1; }
 }
@@ -199,9 +261,38 @@ h1 {
   10% { opacity: .95; }
   100% { transform: translateY(110vh) rotate(420deg); opacity: .7; }
 }
+@keyframes heartFloat {
+  0% { transform: translateY(10vh) rotate(45deg) scale(1); opacity: 0; }
+  10% { opacity: 0.84; }
+  100% { transform: translateY(-110vh) rotate(45deg) scale(1.12); opacity: 0; }
+}
+@keyframes sceneFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes titleShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes cakeBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes shadowPulse {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.52; }
+  50% { transform: translateX(-50%) scale(0.92); opacity: 0.35; }
+}
 @keyframes flicker {
   from { transform: translateX(-50%) scale(1); opacity: .95; }
   to { transform: translateX(-50%) scale(1.12); opacity: .75; }
+}
+@keyframes btnPop {
+  from { transform: scale(0.88); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes btnPulse {
+  0%, 100% { box-shadow: 0 10px 22px rgba(255, 94, 207, 0.35); }
+  50% { box-shadow: 0 12px 30px rgba(255, 94, 207, 0.52); }
 }
 </style>
 </head>
@@ -217,6 +308,10 @@ h1 {
     <span></span><span></span><span></span><span></span><span></span><span></span>
     <span></span><span></span><span></span><span></span><span></span><span></span>
     <span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="birthday-hearts" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span>
   </div>
   <div class="birthday-scene">
     <p class="birthday-kicker">Celebrate!</p>
