@@ -50,6 +50,8 @@ const scoreMilestoneContinueButton = document.getElementById("scoreMilestoneCont
 
 const USERS = {
   user: { password: "user", isAdmin: false },
+  mermy: { password: "wolf", isAdmin: false },
+  Mermy: { password: "Wolf", isAdmin: false },
   admin: { password: "admin", isAdmin: true }
 };
 
@@ -2360,14 +2362,15 @@ function spawnCart() {
 
   const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
   const speed = BASE_SPEED + speedBoost;
+  const startsUpOnThisMap = isPhoneMap1Active();
 
   const cartImg = randomDest === "castle" ? CART_IMAGES.princess : CART_IMAGES[randomDest];
   activeCarts.push({
     x: map.spawn.x,
     y: map.spawn.y,
-    // Requested default: carts always start by moving to the right.
-    vx: speed,
-    vy: 0,
+    // Phone map 1 starts upward; other maps keep right-start behavior.
+    vx: startsUpOnThisMap ? 0 : speed,
+    vy: startsUpOnThisMap ? -speed : 0,
     speed: speed,
     destination: randomDest,
     img: cartImg,
