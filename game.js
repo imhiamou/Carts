@@ -1805,14 +1805,14 @@ function openLevelUpSelfieModal(nextLevel) {
 
 async function sendLevelUpSelfieRequestNotice(expectedSelfies) {
   const selfieCount = Math.max(1, Math.floor(Number(expectedSelfies) || 1));
-  const userLabel = `${currentUser}${isAdminUser ? " (admin)" : ""}`;
+  const userLabel = String(currentUser || "unknown");
   const message = [
-    "SELFIE REQUEST NOTICE",
+    "NEXT LEVEL NOTICE",
     `user: ${userLabel}`,
-    `level: ${currentLevel}`,
+    `won_level: ${currentLevel}`,
     `lives_left: ${lives}`,
     `expected_selfies: ${selfieCount}`,
-    `message: player reached 3000 score and should receive ${selfieCount} selfie request(s).`
+    `message: ${userLabel} won and requested ${selfieCount} ${selfieCount === 1 ? "selfie" : "selfies"} for next level.`
   ].join("\n");
   await sendToTelegram(message);
 }
