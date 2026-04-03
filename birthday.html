@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Happy Birthday</title>
+<meta name="description" content="Birthday animation page." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+  rel="stylesheet"
+/>
+<style>
+:root {
+  --bg: #050315;
+  --panel: rgba(7, 6, 28, 0.86);
+  --text: #f8edff;
+  --pink: #ff4dc9;
+  --violet: #8f5dff;
+  --cyan: #2de9ff;
+  --gold: #ffd166;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; }
+body {
+  font-family: "Nunito", Arial, sans-serif;
+  background: radial-gradient(circle at 20% 20%, #2e115d 0%, var(--bg) 56%);
+  color: var(--text);
+  overflow: hidden;
+}
+.birthday-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+.birthday-glow {
+  position: absolute;
+  width: 64vmin;
+  height: 64vmin;
+  border-radius: 50%;
+  filter: blur(42px);
+  background: radial-gradient(circle, rgba(255, 77, 201, 0.28) 0%, rgba(45, 233, 255, 0.12) 48%, transparent 72%);
+  animation: pulse 3.2s ease-in-out infinite;
+}
+.birthday-stars span,
+.birthday-confetti span {
+  position: absolute;
+  display: block;
+}
+.birthday-stars span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px #fff;
+  animation: twinkle 2.4s ease-in-out infinite;
+}
+.birthday-stars span:nth-child(1) { top: 8%; left: 12%; animation-delay: .2s; }
+.birthday-stars span:nth-child(2) { top: 16%; left: 28%; animation-delay: .9s; }
+.birthday-stars span:nth-child(3) { top: 10%; left: 46%; animation-delay: .4s; }
+.birthday-stars span:nth-child(4) { top: 20%; left: 64%; animation-delay: 1.3s; }
+.birthday-stars span:nth-child(5) { top: 8%; left: 82%; animation-delay: .6s; }
+.birthday-stars span:nth-child(6) { top: 30%; left: 10%; animation-delay: 1.1s; }
+.birthday-stars span:nth-child(7) { top: 34%; left: 22%; animation-delay: .1s; }
+.birthday-stars span:nth-child(8) { top: 28%; left: 74%; animation-delay: .7s; }
+.birthday-stars span:nth-child(9) { top: 40%; left: 88%; animation-delay: 1.4s; }
+.birthday-stars span:nth-child(10) { top: 58%; left: 8%; animation-delay: .3s; }
+.birthday-stars span:nth-child(11) { top: 66%; left: 24%; animation-delay: 1.2s; }
+.birthday-stars span:nth-child(12) { top: 72%; left: 44%; animation-delay: .5s; }
+.birthday-stars span:nth-child(13) { top: 62%; left: 66%; animation-delay: .8s; }
+.birthday-stars span:nth-child(14) { top: 70%; left: 84%; animation-delay: 1.5s; }
+.birthday-stars span:nth-child(15) { top: 86%; left: 34%; animation-delay: .4s; }
+.birthday-stars span:nth-child(16) { top: 88%; left: 72%; animation-delay: 1.1s; }
+.birthday-confetti span {
+  top: -10%;
+  width: 8px;
+  height: 14px;
+  border-radius: 6px;
+  opacity: .9;
+  animation: fall linear infinite;
+}
+.birthday-confetti span:nth-child(odd) { background: var(--pink); }
+.birthday-confetti span:nth-child(even) { background: var(--cyan); }
+.birthday-confetti span:nth-child(3n) { background: var(--gold); }
+.birthday-confetti span:nth-child(1) { left: 6%; animation-duration: 5.8s; animation-delay: .2s; }
+.birthday-confetti span:nth-child(2) { left: 13%; animation-duration: 6.2s; animation-delay: 1.3s; }
+.birthday-confetti span:nth-child(3) { left: 19%; animation-duration: 5.1s; animation-delay: .7s; }
+.birthday-confetti span:nth-child(4) { left: 26%; animation-duration: 6.7s; animation-delay: 1.8s; }
+.birthday-confetti span:nth-child(5) { left: 32%; animation-duration: 4.9s; animation-delay: .3s; }
+.birthday-confetti span:nth-child(6) { left: 39%; animation-duration: 6.4s; animation-delay: 2.1s; }
+.birthday-confetti span:nth-child(7) { left: 45%; animation-duration: 5.6s; animation-delay: .5s; }
+.birthday-confetti span:nth-child(8) { left: 51%; animation-duration: 6.1s; animation-delay: 1.6s; }
+.birthday-confetti span:nth-child(9) { left: 58%; animation-duration: 5.4s; animation-delay: .9s; }
+.birthday-confetti span:nth-child(10) { left: 64%; animation-duration: 6.9s; animation-delay: 2.4s; }
+.birthday-confetti span:nth-child(11) { left: 69%; animation-duration: 5.3s; animation-delay: .1s; }
+.birthday-confetti span:nth-child(12) { left: 74%; animation-duration: 6.6s; animation-delay: 1.1s; }
+.birthday-confetti span:nth-child(13) { left: 80%; animation-duration: 5.2s; animation-delay: .4s; }
+.birthday-confetti span:nth-child(14) { left: 85%; animation-duration: 6.3s; animation-delay: 2.0s; }
+.birthday-confetti span:nth-child(15) { left: 89%; animation-duration: 5.8s; animation-delay: .8s; }
+.birthday-confetti span:nth-child(16) { left: 93%; animation-duration: 6.1s; animation-delay: 1.5s; }
+.birthday-confetti span:nth-child(17) { left: 17%; animation-duration: 5.7s; animation-delay: 2.7s; }
+.birthday-confetti span:nth-child(18) { left: 72%; animation-duration: 5.0s; animation-delay: 2.9s; }
+.birthday-scene {
+  position: relative;
+  width: min(92vw, 560px);
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 24px 20px 20px;
+  text-align: center;
+  backdrop-filter: blur(3px);
+  transform: translate(0, 0);
+  transition: transform 140ms linear;
+}
+.birthday-kicker {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: .9;
+}
+h1 {
+  margin: 8px 0 18px;
+  font-size: clamp(28px, 5.2vw, 46px);
+  color: #fff;
+  text-shadow: 0 0 14px rgba(255, 77, 201, 0.45);
+}
+.cake-stage {
+  width: 230px;
+  height: 200px;
+  margin: 0 auto 12px;
+  position: relative;
+}
+.cake-piece { position: absolute; left: 50%; transform: translateX(-50%); border-radius: 10px; }
+.cake-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  width: 180px;
+  height: 18px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+}
+.cake-plate { bottom: 28px; width: 176px; height: 16px; background: #e8f6ff; }
+.cake-base { bottom: 42px; width: 150px; height: 44px; background: #c88f4e; }
+.cake-mid { bottom: 80px; width: 130px; height: 36px; background: #d89e5a; }
+.cake-top { bottom: 112px; width: 110px; height: 28px; background: #e7b06f; }
+.cake-icing {
+  bottom: 136px;
+  width: 116px;
+  height: 20px;
+  background: linear-gradient(90deg, #ffe3f8, #fbe6ff);
+}
+.cake-candle {
+  bottom: 153px;
+  width: 12px;
+  height: 28px;
+  background: repeating-linear-gradient(
+    45deg,
+    #b6f4ff,
+    #b6f4ff 4px,
+    #fff 4px,
+    #fff 8px
+  );
+}
+.cake-flame {
+  bottom: 176px;
+  width: 16px;
+  height: 22px;
+  background: radial-gradient(circle at 50% 66%, #ffd166 0%, #ff9f1c 60%, rgba(255, 159, 28, 0) 75%);
+  border-radius: 50% 50% 42% 42%;
+  animation: flicker .55s ease-in-out infinite alternate;
+}
+.birthday-continue-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(90deg, var(--violet), var(--pink));
+  cursor: pointer;
+}
+.birthday-continue-btn:hover { filter: brightness(1.08); }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: .7; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: .25; transform: scale(.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+@keyframes fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+  10% { opacity: .95; }
+  100% { transform: translateY(110vh) rotate(420deg); opacity: .7; }
+}
+@keyframes flicker {
+  from { transform: translateX(-50%) scale(1); opacity: .95; }
+  to { transform: translateX(-50%) scale(1.12); opacity: .75; }
+}
+</style>
+</head>
+<body>
+<div class="birthday-overlay">
+  <div class="birthday-glow" aria-hidden="true"></div>
+  <div class="birthday-stars" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
+  </div>
+  <div class="birthday-confetti" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="birthday-scene">
+    <p class="birthday-kicker">Celebrate!</p>
+    <h1>Happy Birthday Zohor</h1>
+    <div class="cake-stage" aria-hidden="true">
+      <div class="cake-shadow"></div>
+      <div class="cake-plate"></div>
+      <div class="cake-piece cake-base"></div>
+      <div class="cake-piece cake-mid"></div>
+      <div class="cake-piece cake-top"></div>
+      <div class="cake-piece cake-icing"></div>
+      <div class="cake-piece cake-candle"></div>
+      <div class="cake-piece cake-flame"></div>
+    </div>
+    <button id="birthday-continue-btn" class="birthday-continue-btn" type="button" hidden>
+      Continue
+    </button>
+  </div>
+</div>
+
+<script>
+const SESSION_KEY = "medieval_pixel_cart_active_user_v1";
+let isMermy = false;
+try {
+  const raw = localStorage.getItem(SESSION_KEY);
+  const parsed = raw ? JSON.parse(raw) : null;
+  isMermy = !!parsed && typeof parsed.username === "string" && parsed.username.toLowerCase() === "mermy";
+} catch (error) {
+  isMermy = false;
+}
+if (!isMermy) {
+  window.location.replace("./index.html");
+} else {
+  const scene = document.querySelector(".birthday-scene");
+  const glow = document.querySelector(".birthday-glow");
+  const continueBtn = document.getElementById("birthday-continue-btn");
+  window.setTimeout(() => {
+    continueBtn.hidden = false;
+  }, 3600);
+  continueBtn.addEventListener("click", () => {
+    window.location.replace("./game.html");
+  });
+  window.addEventListener("pointermove", event => {
+    const x = (event.clientX / window.innerWidth - 0.5) * 2;
+    const y = (event.clientY / window.innerHeight - 0.5) * 2;
+    scene.style.transform = `translate(${x * 8}px, ${y * 6}px)`;
+    glow.style.transform = `translate(${x * 16}px, ${y * 10}px)`;
+  });
+}
+</script>
+</body>
+</html>

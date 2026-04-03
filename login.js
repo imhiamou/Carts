@@ -61,6 +61,10 @@ function tryLogin() {
     password: resolved.canonicalPassword
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  if (resolved.canonicalUsername === "mermy") {
+    window.location.href = "birthday.html";
+    return;
+  }
   window.location.href = "game.html";
 }
 
