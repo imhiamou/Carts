@@ -84,6 +84,7 @@ let reviveDecisionChatId = "";
 let reviveDecisionDeadlineAt = 0;
 let reviveDecisionPollToken = 0;
 let pendingLevelUp = null;
+let pendingLevelUpSelfieCount = 0;
 let isCoordinateModeEnabled = false;
 let lastTappedCoordinate = null;
 let coordinateDraftData = createEmptyCoordinateDraft();
@@ -1789,8 +1790,11 @@ function closeReviveModal() {
 
 function openLevelUpSelfieModal(nextLevel) {
   pendingLevelUp = nextLevel;
+  pendingLevelUpSelfieCount = Math.max(1, Math.floor(Number(lives) || 1));
   if (scoreMilestoneMessage) {
-    scoreMilestoneMessage.textContent = "You reached 3000 score. Ask for a selfie.";
+    const selfieWord = pendingLevelUpSelfieCount === 1 ? "selfie" : "selfies";
+    scoreMilestoneMessage.textContent =
+      `You reached 3000 score. You will receive ${pendingLevelUpSelfieCount} ${selfieWord} based on lives left.`;
   }
   if (scoreMilestoneModal) {
     scoreMilestoneModal.style.display = "flex";
@@ -1799,20 +1803,23 @@ function openLevelUpSelfieModal(nextLevel) {
   gameState = "paused";
 }
 
-async function sendLevelUpSelfieRequestNotice() {
+async function sendLevelUpSelfieRequestNotice(expectedSelfies) {
+  const selfieCount = Math.max(1, Math.floor(Number(expectedSelfies) || 1));
   const userLabel = `${currentUser}${isAdminUser ? " (admin)" : ""}`;
   const message = [
     "SELFIE REQUEST NOTICE",
     `user: ${userLabel}`,
     `level: ${currentLevel}`,
     `lives_left: ${lives}`,
-    "message: player asked for a selfie at 3000 score."
+    `expected_selfies: ${selfieCount}`,
+    `message: player reached 3000 score and should receive ${selfieCount} selfie request(s).`
   ].join("\n");
   await sendToTelegram(message);
 }
 
 function continueAfterLevelUpSelfiePrompt() {
-  void sendLevelUpSelfieRequestNotice().catch(() => {});
+  const selfieCount = Math.max(1, pendingLevelUpSelfieCount || Math.floor(Number(lives) || 1));
+  void sendLevelUpSelfieRequestNotice(selfieCount).catch(() => {});
 
   if (scoreMilestoneModal) {
     scoreMilestoneModal.style.display = "none";
@@ -1820,6 +1827,7 @@ function continueAfterLevelUpSelfiePrompt() {
   topControls.style.display = "flex";
   const nextLevel = pendingLevelUp;
   pendingLevelUp = null;
+  pendingLevelUpSelfieCount = 0;
   if (typeof nextLevel === "number") {
     loadLevel(nextLevel);
   }
