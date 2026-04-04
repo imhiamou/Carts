@@ -2376,14 +2376,16 @@ function spawnCart() {
 
   const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
   const baseSpeed = BASE_SPEED + speedBoost;
-  const speed = usePhoneMap() ? baseSpeed * PHONE_CART_SPEED_MULTIPLIER : baseSpeed;
-  const startsUpOnThisMap = currentLevel === 1;
+  const isPhoneView = usePhoneMap();
+  const speed = isPhoneView ? baseSpeed * PHONE_CART_SPEED_MULTIPLIER : baseSpeed;
+  const startsUpOnThisMap = currentLevel === 1 || (!isPhoneView && (currentLevel === 2 || currentLevel === 4));
 
   const cartImg = randomDest === "castle" ? CART_IMAGES.princess : CART_IMAGES[randomDest];
   activeCarts.push({
     x: map.spawn.x,
     y: map.spawn.y,
-    // Map 1 starts upward on both phone and PC; other maps keep right-start behavior.
+    // Map 1 starts upward on both phone and PC.
+    // On PC, map 2 and map 4 also start upward.
     vx: startsUpOnThisMap ? 0 : speed,
     vy: startsUpOnThisMap ? -speed : 0,
     speed: speed,
