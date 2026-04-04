@@ -1286,6 +1286,11 @@ const BASE_SPEED = 2.0;
 const SPEED_INCREMENT = 0.15;
 const PHONE_CART_SPEED_MULTIPLIER = 0.72;
 const SPAWN_DELAY = 200;
+const PHONE_SPAWN_DELAY = 300;
+
+function getSpawnDelay() {
+  return usePhoneMap() ? PHONE_SPAWN_DELAY : SPAWN_DELAY;
+}
 
 /* ================= LOADERS ================= */
 
@@ -2399,7 +2404,7 @@ function update() {
   if (gameState !== "playing") return;
 
   spawnTimer++;
-  if (spawnTimer >= SPAWN_DELAY) {
+  if (spawnTimer >= getSpawnDelay()) {
     spawnTimer = 0;
     spawnCart();
   }
