@@ -1286,7 +1286,7 @@ const BASE_SPEED = 2.0;
 const SPEED_INCREMENT = 0.15;
 const PHONE_CART_SPEED_MULTIPLIER = 0.72;
 const SPAWN_DELAY = 200;
-const PHONE_SPAWN_DELAY = 300;
+const PHONE_SPAWN_DELAY = 450;
 
 function getSpawnDelay() {
   return usePhoneMap() ? PHONE_SPAWN_DELAY : SPAWN_DELAY;
