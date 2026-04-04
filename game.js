@@ -1284,6 +1284,7 @@ function getTapRadius() {
 
 const BASE_SPEED = 2.0;
 const SPEED_INCREMENT = 0.15;
+const PHONE_CART_SPEED_MULTIPLIER = 0.72;
 const SPAWN_DELAY = 200;
 
 /* ================= LOADERS ================= */
@@ -2369,7 +2370,8 @@ function spawnCart() {
   const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
 
   const speedBoost = Math.floor(score / 1000) * SPEED_INCREMENT;
-  const speed = BASE_SPEED + speedBoost;
+  const baseSpeed = BASE_SPEED + speedBoost;
+  const speed = usePhoneMap() ? baseSpeed * PHONE_CART_SPEED_MULTIPLIER : baseSpeed;
   const startsUpOnThisMap = currentLevel === 1;
 
   const cartImg = randomDest === "castle" ? CART_IMAGES.princess : CART_IMAGES[randomDest];
