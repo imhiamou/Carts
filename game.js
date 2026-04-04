@@ -217,6 +217,7 @@ const WORLD_HEIGHT = 900;
 /* ================= SIZE ================= */
 
 const CART_SIZE = 240;
+const PC_CART_SIZE = 220;
 const PHONE_MAP2_CART_SIZE = 220;
 const ARROW_SIZE = 50;
 const TAP_RADIUS = 80;
@@ -262,6 +263,7 @@ function getPhoneWidthScaleBoost() {
 }
 
 function getCurrentCartSize() {
+  if (!usePhoneMap()) return PC_CART_SIZE;
   return isPhoneMap2Active() ? PHONE_MAP2_CART_SIZE : CART_SIZE;
 }
 
