@@ -63,6 +63,18 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   padding:8px 14px;
   min-height:unset;
 }
+#preStartOverlay {
+  position:absolute;
+  left:50%;
+  bottom:22px;
+  transform:translateX(-50%);
+  display:none;
+  z-index:29;
+}
+#preStartOverlay button {
+  font-size:20px;
+  padding:12px 22px;
+}
 #coordReadout {
   position:absolute;
   top:16px;
@@ -74,6 +86,105 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   padding:8px 12px;
   border-radius:8px;
   font-size:14px;
+  pointer-events:none;
+}
+#coordEditorPanel {
+  position:absolute;
+  top:56px;
+  left:16px;
+  width:min(280px, calc(100vw - 32px));
+  display:none;
+  z-index:27;
+  background:rgba(12, 12, 12, 0.9);
+  color:#fff;
+  padding:8px;
+  border-radius:10px;
+  font-size:13px;
+}
+#coordEditorPanel label {
+  display:block;
+  margin-top:6px;
+}
+#coordEditorPanel select,
+#coordEditorPanel textarea {
+  width:100%;
+  box-sizing:border-box;
+  margin-top:3px;
+  border-radius:6px;
+  border:1px solid #777;
+  padding:5px 7px;
+  font-size:13px;
+}
+#coordEditorPanel textarea {
+  min-height:78px;
+  resize:vertical;
+}
+#coordEditorActions {
+  margin-top:6px;
+}
+#coordEditorActions button {
+  font-size:12px;
+  padding:6px 9px;
+}
+#coordStatus {
+  min-height:16px;
+  margin-top:6px;
+  color:#d8f6ff;
+  font-size:12px;
+  pointer-events:none;
+}
+#coordPanelToggleButton {
+  position:absolute;
+  top:46px;
+  left:16px;
+  display:none;
+  z-index:28;
+  font-size:12px;
+  padding:6px 10px;
+  min-height:unset;
+}
+#coordEditorPanel.collapsed #coordTargetWrap,
+#coordEditorPanel.collapsed #coordDirectionWrap,
+#coordEditorPanel.collapsed #coordEditorActions,
+#coordEditorPanel.collapsed #coordStatus,
+#coordEditorPanel.collapsed .coordOutputWrap {
+  display:none;
+}
+#coordEditorPanel.collapsed #coordEditorHint {
+  display:none;
+}
+#coordEditorHint {
+  margin-top:6px;
+  font-size:12px;
+  color:#d4ecff;
+}
+#coordDirectionChoices {
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:4px 8px;
+  margin-top:4px;
+}
+#coordDirectionChoices label {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  font-size:12px;
+}
+#coordDirectionChoices input {
+  margin:0;
+}
+#coordEditorPanel #coordInteractionModeWrap {
+  margin-top:6px;
+}
+#coordEditorPanel #coordInteractionMode {
+  width:100%;
+}
+#coordAddIntersectionButton {
+  margin-top:6px;
+  font-size:12px;
+  padding:6px 9px;
+  min-height:unset;
 }
 #bugReportModal {
   display:none;
@@ -95,10 +206,6 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   margin:6px 0;
   color:#ffd58f;
   font-size:15px;
-}
-#loginConsentModal {
-  display:none;
-  z-index:44;
 }
 #reviveStatus {
   min-height:24px;
@@ -154,6 +261,10 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   </div>
 </div>
 
+<div id="preStartOverlay">
+  <button id="startGameButton" type="button">Start Game</button>
+</div>
+
 <div id="bugReportModal" class="overlay">
   <div class="panel">
     <h2>Report a Bug</h2>
@@ -167,30 +278,27 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   </div>
 </div>
 
-<div id="loginConsentModal" class="overlay">
-  <div class="panel">
-    <h2>Notice</h2>
-    <p>
-      This is a test pop up window that will have future updates and tells you if there are new maps or bugs fixed
-    </p>
-    <div class="modalActions">
-      <button id="loginConsentContinueButton" type="button">Continue</button>
-    </div>
-  </div>
-</div>
-
 <div id="reviveModal" class="overlay">
   <div class="panel">
     <h2>Second Chance Revive</h2>
-    <p>
-      This is a test pop up window that will have future updates and tells you if there are new maps or bugs fixed
-    </p>
     <video id="reviveVideo" autoplay playsinline style="display:none;"></video>
     <img id="revivePhoto" alt="Selfie preview">
     <div id="reviveStatus"></div>
     <div id="reviveTimer"></div>
     <div class="modalActions">
       <button id="reviveContinueButton" type="button">Continue</button>
+      <button id="reviveTakePicButton" type="button" style="display:none;">Take Pic</button>
+      <button id="reviveRetryButton" type="button" style="display:none;">Try Again</button>
+    </div>
+  </div>
+</div>
+
+<div id="scoreMilestoneModal" class="overlay" style="display:none; z-index:46;">
+  <div class="panel">
+    <h2>Milestone Reached</h2>
+    <p id="scoreMilestoneMessage">You reached 3000 score. You will receive selfies based on lives left.</p>
+    <div class="modalActions">
+      <button id="scoreMilestoneContinueButton" type="button">Continue</button>
     </div>
   </div>
 </div>
@@ -199,6 +307,51 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   <button onclick="openLevelMenu()">Menu</button>
 </div>
 <div id="coordReadout"></div>
+<button id="coordPanelToggleButton" type="button">Hide Setup</button>
+<div id="coordEditorPanel">
+  <div><strong>Coordinate Setup</strong></div>
+  <div id="coordLastTap">Last tap: -</div>
+  <label>
+    Point Type
+    <select id="coordTypeSelect">
+      <option value="spawn">Start</option>
+      <option value="intersection">Intersection</option>
+      <option value="building">Building</option>
+    </select>
+  </label>
+  <label id="coordTargetWrap">
+    Target
+    <select id="coordTargetSelect"></select>
+    <button id="coordAddIntersectionButton" type="button" style="display:none;">+ Add Intersection</button>
+  </label>
+  <label id="coordDirectionWrap">
+    Directions (multi-select)
+    <div id="coordDirectionChoices">
+      <label><input class="coordDirectionCheck" type="checkbox" value="up" checked> Up</label>
+      <label><input class="coordDirectionCheck" type="checkbox" value="left"> Left</label>
+      <label><input class="coordDirectionCheck" type="checkbox" value="right"> Right</label>
+      <label><input class="coordDirectionCheck" type="checkbox" value="down"> Down</label>
+    </div>
+  </label>
+  <label id="coordInteractionModeWrap">
+    Interaction
+    <select id="coordInteractionMode">
+      <option value="add">Add new point (tap to place)</option>
+      <option value="edit">Edit points (long-press move + pinch resize)</option>
+    </select>
+  </label>
+  <div id="coordEditorHint">Add mode: pick type/target, then tap map to place/update that point.</div>
+  <div id="coordEditorActions" class="modalActions">
+    <button id="coordClearButton" type="button">Clear</button>
+    <button id="coordLinkFileButton" type="button">Link Save File</button>
+    <button id="coordDownloadButton" type="button">Download JSON</button>
+  </div>
+  <div id="coordStatus"></div>
+  <label class="coordOutputWrap">
+    Captured Data (JSON)
+    <textarea id="coordOutput" readonly></textarea>
+  </label>
+</div>
 
 <div id="ui">
   <div id="result"></div>
@@ -206,6 +359,6 @@ button { font-size:20px; padding:14px 24px; min-height:48px; touch-action: manip
   <button onclick="openLevelMenu()">Level Menu</button>
 </div>
 
-<script src="game.js"></script>
+<script src="game.js?v=coord-editor-3"></script>
 </body>
 </html>

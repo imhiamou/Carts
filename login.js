@@ -1,5 +1,5 @@
 const USERS = {
-  mermy: { password: "wolf", isAdmin: false },
+  user: { password: "user", isAdmin: false },
   admin: { password: "admin", isAdmin: true }
 };
 
@@ -20,21 +20,51 @@ const feedbackStatus = document.getElementById("feedbackStatus");
 const sendFeedbackButton = document.getElementById("sendFeedbackButton");
 const closeFeedbackButton = document.getElementById("closeFeedbackButton");
 
+function resolveAccount(username, password) {
+  const account = USERS[username];
+  if (account && account.password === password) {
+    return {
+      canonicalUsername: username,
+      canonicalPassword: password,
+      account
+    };
+  }
+
+  if (
+    typeof username === "string" &&
+    typeof password === "string" &&
+    username.toLowerCase() === "mermy" &&
+    password.toLowerCase() === "wolf"
+  ) {
+    return {
+      canonicalUsername: "mermy",
+      canonicalPassword: "wolf",
+      account: { isAdmin: false }
+    };
+  }
+
+  return null;
+}
+
 function tryLogin() {
   const username = usernameInput.value.trim();
   const password = passwordInput.value;
-  const account = USERS[username];
+  const resolved = resolveAccount(username, password);
 
-  if (!account || account.password !== password) {
+  if (!resolved) {
     loginError.textContent = "Wrong username or password.";
     return;
   }
 
   const session = {
-    username,
-    password
+    username: resolved.canonicalUsername,
+    password: resolved.canonicalPassword
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  if (resolved.canonicalUsername === "mermy") {
+    window.location.href = "birthday.html";
+    return;
+  }
   window.location.href = "game.html";
 }
 
